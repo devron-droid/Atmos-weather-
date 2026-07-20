@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Atmos — Weather, precisely.</title>
+<meta name="description" content="Atmos is a fast, frontend-only weather dashboard. Search any city, save favourites, and see hourly & 7-day forecasts — no backend, no key, no tracking." />
+<meta name="theme-color" content="#04070a" />
+<link rel="icon" type="image/png" href="assets/favicon.png" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;0,6..96,600;1,6..96,500;1,6..96,600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- ============ LOADING SCREEN ============ -->
+<div id="loader" aria-hidden="true">
+  <svg class="loader-line" viewBox="0 0 240 2" preserveAspectRatio="none">
+    <line x1="0" y1="1" x2="240" y2="1" />
+  </svg>
+  <div class="loader-word">Atmos</div>
+</div>
+
+<!-- ============ APP ============ -->
+<div id="app" class="app" hidden>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="brand" title="Atmos">
+      <svg viewBox="0 0 32 20" class="brand-mark" aria-hidden="true">
+        <path d="M1 14c2-6 6-9 10-9 3 0 4 2 7 2s5-3 9-3 5 3 5 3" />
+        <path d="M4 18c2-4 5-6 8-6 3 0 4 1.5 6 1.5s4-2.5 8-2.5 6 2 6 2" opacity=".45"/>
+      </svg>
+    </div>
+    <nav class="side-nav">
+      <button class="side-btn is-active" data-nav="dashboard" title="Dashboard" aria-label="Dashboard">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></svg>
+      </button>
+      <button class="side-btn" data-nav="add" title="Add a city" aria-label="Add a city">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>
+      </button>
+      <button class="side-btn" data-nav="explore" title="Locate me" aria-label="Use current location">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+      </button>
+      <button class="side-btn" data-nav="days" title="7-day forecast" aria-label="7-day forecast">
+        <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+      </button>
+      <button class="side-btn" data-nav="units" title="Toggle °C / °F" aria-label="Toggle temperature unit">
+        <svg viewBox="0 0 24 24"><path d="M14 14.76V4a2 2 0 1 0-4 0v10.76a4 4 0 1 0 4 0z"/></svg>
+      </button>
+    </nav>
+    <div class="side-bottom">
+      <button class="side-btn" id="aboutBtn" title="About Atmos" aria-label="About Atmos">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8v.01"/></svg>
+      </button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main" id="main" data-condition="clear">
+    <div class="main-scrim"></div>
+
+    <header class="topbar">
+      <div class="search-wrap">
+        <svg class="search-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input id="searchInput" type="text" placeholder="Search a city…" autocomplete="off" aria-label="Search for a city" />
+        <button id="clearSearch" class="clear-btn" hidden aria-label="Clear search">
+          <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+        <div id="suggestions" class="suggestions" hidden></div>
+      </div>
+
+      <div class="topbar-actions">
+        <button id="locateBtn" class="icon-btn" title="Use my location" aria-label="Use my location">
+          <svg viewBox="0 0 24 24"><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="6"/></svg>
+        </button>
+        <button id="unitToggle" class="icon-btn unit-btn" title="Switch units" aria-label="Switch between Celsius and Fahrenheit">°C</button>
+        <button id="refreshBtn" class="icon-btn" title="Refresh" aria-label="Refresh weather data">
+          <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg>
+        </button>
+        <div class="clock" id="topClock">
+          <span id="clockDate">—</span>
+          <span id="clockTime">—:—</span>
+        </div>
+      </div>
+    </header>
+
+    <div class="content">
+      <!-- HERO -->
+      <section class="hero">
+        <p class="eyebrow" id="heroEyebrow">Weather Forecast</p>
+        <h1 class="hero-title" id="heroTitle">Loading<br/>the sky…</h1>
+        <p class="hero-desc" id="heroDesc">Fetching current conditions.</p>
+
+        <div class="strip" id="hourStrip" aria-label="Hourly forecast"></div>
+
+        <div class="daytabs" id="dayTabs" role="tablist" aria-label="7 day forecast"></div>
+      </section>
+
+      <!-- RIGHT RAIL -->
+      <aside class="rail">
+        <div class="card current-card" id="currentCard">
+          <div class="loc-row">
+            <svg viewBox="0 0 24 24" class="pin"><path d="M12 21s-7-6.3-7-11.5A7 7 0 0 1 19 9.5C19 14.7 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.3"/></svg>
+            <span id="currentCity">—</span>
+          </div>
+          <div class="temp-row">
+            <span id="currentTemp">—</span><span class="deg" id="currentDeg">°C</span>
+          </div>
+          <p class="cond-line" id="currentCond">—</p>
+          <div class="stat-grid">
+            <div class="stat"><svg viewBox="0 0 24 24"><path d="M3 8h11a3 3 0 1 0-3-3"/><path d="M3 16h15a3 3 0 1 1-3 3"/></svg><span id="statWind">—</span></div>
+            <div class="stat"><svg viewBox="0 0 24 24"><path d="M12 3c3 4 6 7.5 6 11a6 6 0 1 1-12 0c0-3.5 3-7 6-11z"/></svg><span id="statHumidity">—</span></div>
+            <div class="stat"><svg viewBox="0 0 24 24"><path d="M4 15c2-6 6-9 8-9s6 3 8 9"/><circle cx="12" cy="15" r="2"/></svg><span id="statPrecip">—</span></div>
+            <div class="stat"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><span id="statUv">—</span></div>
+          </div>
+          <div class="sun-row">
+            <div><svg viewBox="0 0 24 24"><circle cx="12" cy="17" r="4"/><path d="M2 17h2M20 17h2M12 3v3M5 8l1.5 1.5M19 8l-1.5 1.5"/></svg><span id="statSunrise">—</span></div>
+            <div><svg viewBox="0 0 24 24"><circle cx="12" cy="17" r="4"/><path d="M2 17h2M20 17h2M12 21v-2M5 26l1.5-1.5"/><path d="M8 12l4-9 4 9"/></svg><span id="statSunset">—</span></div>
+            <div><svg viewBox="0 0 24 24"><path d="M12 2a6 6 0 0 0-6 6c0 4 6 12 6 12s6-8 6-12a6 6 0 0 0-6-6z"/><circle cx="12" cy="8" r="2"/></svg><span id="statAqi">—</span></div>
+          </div>
+        </div>
+
+        <div class="fav-header">
+          <span>Saved cities</span>
+          <button id="addCurrentFav" class="add-fav-btn" title="Save current city" aria-label="Save current city to favourites">+</button>
+        </div>
+        <div id="favList" class="fav-list"></div>
+      </aside>
+    </div>
+
+    <p class="footnote">Data via Open‑Meteo · No backend, no API key, nothing stored but your device's local settings.</p>
+  </main>
+</div>
+
+<div id="toast" class="toast" hidden></div>
+
+<script src="script.js"></script>
+</body>
+</html>
