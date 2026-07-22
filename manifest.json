@@ -1,0 +1,13 @@
+{
+  "name": "Atmos — Weather, precisely.",
+  "short_name": "Atmos",
+  "description": "A frontend-only weather dashboard with an AI assistant, live radar map, and dynamic backgrounds.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#04070a",
+  "theme_color": "#04070a",
+  "icons": [
+    { "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

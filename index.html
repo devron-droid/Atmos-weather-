@@ -4,13 +4,18 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>Atmos — Weather, precisely.</title>
-<meta name="description" content="Atmos is a fast, frontend-only weather dashboard. Search any city, save favourites, and see hourly & 7-day forecasts — no backend, no key, no tracking." />
+<meta name="description" content="Atmos is a fast, frontend-only weather dashboard with an AI assistant, live map, and dynamic backgrounds. No backend, no key, no tracking." />
 <meta name="theme-color" content="#04070a" />
 <link rel="icon" type="image/png" href="assets/favicon.png" />
+<link rel="manifest" href="manifest.json" />
+<link rel="apple-touch-icon" href="assets/icon-192.png" />
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;0,6..96,600;1,6..96,500;1,6..96,600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<!-- Leaflet map (loaded from CDN, only used when the Map modal is opened) -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
 
 <link rel="stylesheet" href="style.css" />
 </head>
@@ -18,10 +23,16 @@
 
 <!-- ============ LOADING SCREEN ============ -->
 <div id="loader" aria-hidden="true">
+  <div class="loader-orbit">
+    <div class="loader-ring r1"></div>
+    <div class="loader-ring r2"></div>
+    <div class="loader-core"></div>
+  </div>
   <svg class="loader-line" viewBox="0 0 240 2" preserveAspectRatio="none">
     <line x1="0" y1="1" x2="240" y2="1" />
   </svg>
   <div class="loader-word">Atmos</div>
+  <div class="loader-sub" id="loaderSub">Reading the sky…</div>
 </div>
 
 <!-- ============ APP ============ -->
@@ -42,17 +53,23 @@
       <button class="side-btn" data-nav="add" title="Add a city" aria-label="Add a city">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>
       </button>
-      <button class="side-btn" data-nav="explore" title="Locate me" aria-label="Use current location">
+      <button class="side-btn" id="locateNavBtn" title="Locate me" aria-label="Use current location">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
       </button>
-      <button class="side-btn" data-nav="days" title="7-day forecast" aria-label="7-day forecast">
-        <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+      <button class="side-btn" id="mapNavBtn" title="Weather map" aria-label="Open weather map">
+        <svg viewBox="0 0 24 24"><path d="M9 3 3 6v15l6-3 6 3 6-3V3l-6 3-6-3z"/><path d="M9 3v15M15 6v15"/></svg>
       </button>
-      <button class="side-btn" data-nav="units" title="Toggle °C / °F" aria-label="Toggle temperature unit">
-        <svg viewBox="0 0 24 24"><path d="M14 14.76V4a2 2 0 1 0-4 0v10.76a4 4 0 1 0 4 0z"/></svg>
+      <button class="side-btn" id="compareNavBtn" title="Compare cities" aria-label="Compare two cities">
+        <svg viewBox="0 0 24 24"><path d="M8 3v18M16 3v18"/><path d="M4 8h4M4 16h4M16 8h4M16 16h4"/></svg>
+      </button>
+      <button class="side-btn" id="settingsNavBtn" title="Settings" aria-label="Open settings">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
       </button>
     </nav>
     <div class="side-bottom">
+      <button class="side-btn" id="shortcutsBtn" title="Keyboard shortcuts" aria-label="Keyboard shortcuts">
+        <svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M6 9h.01M10 9h.01M14 9h.01M18 9h.01M6 13h12"/></svg>
+      </button>
       <button class="side-btn" id="aboutBtn" title="About Atmos" aria-label="About Atmos">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8v.01"/></svg>
       </button>
@@ -60,7 +77,10 @@
   </aside>
 
   <!-- MAIN -->
-  <main class="main" id="main" data-condition="clear">
+  <main class="main" id="main" data-condition="clear" data-daypart="afternoon">
+    <canvas id="particles" aria-hidden="true"></canvas>
+    <div class="bg-layer" id="bgLayerA"></div>
+    <div class="bg-layer" id="bgLayerB"></div>
     <div class="main-scrim"></div>
 
     <header class="topbar">
@@ -74,11 +94,11 @@
       </div>
 
       <div class="topbar-actions">
-        <button id="locateBtn" class="icon-btn" title="Use my location" aria-label="Use my location">
+        <button id="locateBtn" class="icon-btn holo" title="Use my location" aria-label="Use my location">
           <svg viewBox="0 0 24 24"><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="6"/></svg>
         </button>
-        <button id="unitToggle" class="icon-btn unit-btn" title="Switch units" aria-label="Switch between Celsius and Fahrenheit">°C</button>
-        <button id="refreshBtn" class="icon-btn" title="Refresh" aria-label="Refresh weather data">
+        <button id="unitToggle" class="icon-btn holo unit-btn" title="Switch units" aria-label="Switch between Celsius and Fahrenheit">°C</button>
+        <button id="refreshBtn" class="icon-btn holo" title="Refresh" aria-label="Refresh weather data">
           <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg>
         </button>
         <div class="clock" id="topClock">
@@ -88,12 +108,26 @@
       </div>
     </header>
 
+    <!-- ALERTS -->
+    <div id="alertsBar" class="alerts-bar" hidden></div>
+
     <div class="content">
       <!-- HERO -->
       <section class="hero">
         <p class="eyebrow" id="heroEyebrow">Weather Forecast</p>
         <h1 class="hero-title" id="heroTitle">Loading<br/>the sky…</h1>
         <p class="hero-desc" id="heroDesc">Fetching current conditions.</p>
+
+        <!-- TIMELINE -->
+        <div class="timeline" id="timeline" role="tablist" aria-label="Time range">
+          <button class="tl-btn is-active" data-range="now">Now</button>
+          <button class="tl-btn" data-range="1h">+1h</button>
+          <button class="tl-btn" data-range="3h">+3h</button>
+          <button class="tl-btn" data-range="6h">+6h</button>
+          <button class="tl-btn" data-range="12h">+12h</button>
+          <button class="tl-btn" data-range="tomorrow">Tomorrow</button>
+          <button class="tl-btn" data-range="week">7 Days</button>
+        </div>
 
         <div class="strip" id="hourStrip" aria-label="Hourly forecast"></div>
 
@@ -102,7 +136,7 @@
 
       <!-- RIGHT RAIL -->
       <aside class="rail">
-        <div class="card current-card" id="currentCard">
+        <div class="card current-card tilt" id="currentCard">
           <div class="loc-row">
             <svg viewBox="0 0 24 24" class="pin"><path d="M12 21s-7-6.3-7-11.5A7 7 0 0 1 19 9.5C19 14.7 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.3"/></svg>
             <span id="currentCity">—</span>
@@ -117,10 +151,25 @@
             <div class="stat"><svg viewBox="0 0 24 24"><path d="M4 15c2-6 6-9 8-9s6 3 8 9"/><circle cx="12" cy="15" r="2"/></svg><span id="statPrecip">—</span></div>
             <div class="stat"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><span id="statUv">—</span></div>
           </div>
-          <div class="sun-row">
-            <div><svg viewBox="0 0 24 24"><circle cx="12" cy="17" r="4"/><path d="M2 17h2M20 17h2M12 3v3M5 8l1.5 1.5M19 8l-1.5 1.5"/></svg><span id="statSunrise">—</span></div>
-            <div><svg viewBox="0 0 24 24"><circle cx="12" cy="17" r="4"/><path d="M2 17h2M20 17h2M12 21v-2M5 26l1.5-1.5"/><path d="M8 12l4-9 4 9"/></svg><span id="statSunset">—</span></div>
-            <div><svg viewBox="0 0 24 24"><path d="M12 2a6 6 0 0 0-6 6c0 4 6 12 6 12s6-8 6-12a6 6 0 0 0-6-6z"/><circle cx="12" cy="8" r="2"/></svg><span id="statAqi">—</span></div>
+          <button class="ghost-btn" id="openAqiBtn">Full air quality &amp; details →</button>
+        </div>
+
+        <!-- SUN / MOON RING -->
+        <div class="card sun-card tilt">
+          <div class="sun-ring-wrap">
+            <svg viewBox="0 0 120 70" class="sun-ring">
+              <path d="M10 62 A50 50 0 0 1 110 62" class="ring-track"/>
+              <path d="M10 62 A50 50 0 0 1 110 62" class="ring-fill" id="sunArc"/>
+              <circle id="sunDot" cx="10" cy="62" r="4.5"/>
+            </svg>
+            <div class="sun-labels">
+              <div><small>Sunrise</small><span id="statSunrise">—</span></div>
+              <div><small>Sunset</small><span id="statSunset">—</span></div>
+            </div>
+          </div>
+          <div class="moon-row">
+            <span class="moon-icon" id="moonIcon">🌙</span>
+            <span id="moonPhase">—</span>
           </div>
         </div>
 
@@ -129,6 +178,11 @@
           <button id="addCurrentFav" class="add-fav-btn" title="Save current city" aria-label="Save current city to favourites">+</button>
         </div>
         <div id="favList" class="fav-list"></div>
+
+        <div class="fav-header" id="recentHeader" hidden>
+          <span>Recent searches</span>
+        </div>
+        <div id="recentList" class="fav-list"></div>
       </aside>
     </div>
 
@@ -136,8 +190,154 @@
   </main>
 </div>
 
+<!-- ============ AI ASSISTANT PANEL ============ -->
+<button id="assistantFab" class="assistant-fab" aria-haspopup="dialog" aria-controls="assistantPanel" aria-label="Open AI weather assistant">
+  <svg viewBox="0 0 24 24"><path d="M12 3a5 5 0 0 1 5 5v2a5 5 0 0 1-10 0V8a5 5 0 0 1 5-5z"/><path d="M8 21h8M12 17v4"/><circle cx="12" cy="8" r="1.4" fill="currentColor" stroke="none"/></svg>
+</button>
+
+<aside id="assistantPanel" class="assistant-panel" role="dialog" aria-modal="false" aria-label="AI weather assistant" hidden>
+  <div class="assistant-head">
+    <div>
+      <strong>Atmos Assistant</strong>
+      <span class="assistant-sub">Rule-based · runs entirely in your browser</span>
+    </div>
+    <div class="assistant-head-actions">
+      <select id="assistantLang" aria-label="Assistant language">
+        <option value="en-US">English</option>
+        <option value="hi-IN">हिन्दी</option>
+      </select>
+      <button id="closeAssistant" class="icon-btn holo small" aria-label="Close assistant"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+  </div>
+
+  <div class="assistant-chips" id="assistantChips">
+    <button data-q="What should I wear today?">👕 Clothing</button>
+    <button data-q="Is it good weather for travel?">✈️ Travel</button>
+    <button data-q="Should I work out outside today?">🏋️ Workout</button>
+    <button data-q="Is it good for a run today?">🏃 Running</button>
+    <button data-q="Good day for cycling?">🚴 Cycling</button>
+    <button data-q="Any farming tips for today's weather?">🌾 Farming</button>
+    <button data-q="Should I drink more water today?">💧 Hydration</button>
+    <button data-q="What's the UV risk today?">☀️ UV</button>
+    <button data-q="Will it rain today?">🌧️ Rain</button>
+  </div>
+
+  <div class="assistant-log" id="assistantLog" aria-live="polite"></div>
+
+  <form id="assistantForm" class="assistant-form">
+    <button type="button" id="micBtn" class="icon-btn holo small" title="Voice input" aria-label="Ask by voice">
+      <svg viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v4M8 22h8"/></svg>
+    </button>
+    <input id="assistantInput" type="text" placeholder="Ask about today's weather…" autocomplete="off" aria-label="Ask the assistant" />
+    <button type="button" id="speakToggle" class="icon-btn holo small is-active" title="Toggle spoken replies" aria-label="Toggle spoken replies">
+      <svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M17 8a5 5 0 0 1 0 8"/></svg>
+    </button>
+    <button type="submit" class="icon-btn holo small primary" aria-label="Send">
+      <svg viewBox="0 0 24 24"><path d="M4 12l16-8-6 16-3-7-7-1z"/></svg>
+    </button>
+  </form>
+</aside>
+
+<!-- ============ MODALS ============ -->
+<div class="modal-backdrop" id="modalBackdrop" hidden></div>
+
+<div class="modal" id="settingsModal" role="dialog" aria-modal="true" aria-label="Settings" hidden>
+  <div class="modal-head"><h2>Settings</h2><button class="modal-close" data-close aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="modal-body">
+    <div class="set-row"><label>Temperature unit</label>
+      <div class="seg"><button data-set="unit" data-val="c" class="is-active">°C</button><button data-set="unit" data-val="f">°F</button></div>
+    </div>
+    <div class="set-row"><label>Wind unit</label>
+      <div class="seg"><button data-set="wind" data-val="kmh" class="is-active">km/h</button><button data-set="wind" data-val="mph">mph</button></div>
+    </div>
+    <div class="set-row"><label>Assistant &amp; voice language</label>
+      <div class="seg"><button data-set="lang" data-val="en-US" class="is-active">EN</button><button data-set="lang" data-val="hi-IN">हिं</button></div>
+    </div>
+    <div class="set-row"><label>Animations &amp; particles</label>
+      <label class="switch"><input type="checkbox" id="toggleAnim" checked /><span></span></label>
+    </div>
+    <div class="set-row"><label>3D tilt on cards</label>
+      <label class="switch"><input type="checkbox" id="toggleTilt" checked /><span></span></label>
+    </div>
+    <div class="set-row"><label>Background overlay intensity <span id="intensityVal">55%</span></label>
+      <input type="range" id="intensityRange" min="20" max="90" value="55" />
+    </div>
+    <div class="set-row"><label>Glass blur <span id="blurVal">22px</span></label>
+      <input type="range" id="blurRange" min="0" max="40" value="22" />
+    </div>
+    <div class="set-row"><label>Font size <span id="fontVal">100%</span></label>
+      <input type="range" id="fontRange" min="85" max="120" value="100" />
+    </div>
+    <button class="ghost-btn" id="resetSettings">Reset to defaults</button>
+  </div>
+</div>
+
+<div class="modal" id="aqiModal" role="dialog" aria-modal="true" aria-label="Air quality and details" hidden>
+  <div class="modal-head"><h2>Air quality &amp; conditions</h2><button class="modal-close" data-close aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="modal-body">
+    <div class="grid-cards" id="aqiGrid"></div>
+  </div>
+</div>
+
+<div class="modal modal-lg" id="mapModal" role="dialog" aria-modal="true" aria-label="Weather map" hidden>
+  <div class="modal-head"><h2>Weather map</h2><button class="modal-close" data-close aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="modal-body no-pad">
+    <div class="map-controls">
+      <label class="switch small"><input type="checkbox" id="radarToggle" checked /><span></span></label>
+      <span>Precipitation radar (RainViewer, live)</span>
+    </div>
+    <div id="leafletMap"></div>
+  </div>
+</div>
+
+<div class="modal" id="compareModal" role="dialog" aria-modal="true" aria-label="Compare cities" hidden>
+  <div class="modal-head"><h2>Compare cities</h2><button class="modal-close" data-close aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="modal-body">
+    <div class="compare-inputs">
+      <input id="compareA" placeholder="First city…" autocomplete="off" />
+      <span>vs</span>
+      <input id="compareB" placeholder="Second city…" autocomplete="off" />
+    </div>
+    <div class="compare-result" id="compareResult"></div>
+  </div>
+</div>
+
+<div class="modal" id="aboutModal" role="dialog" aria-modal="true" aria-label="About Atmos" hidden>
+  <div class="modal-head"><h2>About Atmos</h2><button class="modal-close" data-close aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="modal-body">
+    <div class="tabs">
+      <button class="tab-btn is-active" data-tab="about">About</button>
+      <button class="tab-btn" data-tab="changelog">Changelog</button>
+    </div>
+    <div class="tab-pane is-active" data-pane="about">
+      <p>Atmos is a frontend-only weather dashboard. Every request — forecast, geocoding, air quality, map tiles — is made directly from your browser to free public APIs. There is no server, no account, and no analytics; your saved cities and settings live only in this browser's local storage.</p>
+      <p>Weather data: Open‑Meteo. Radar tiles: RainViewer. Map: Leaflet + OpenStreetMap.</p>
+    </div>
+    <div class="tab-pane" data-pane="changelog">
+      <ul class="changelog">
+        <li><strong>v2.0</strong> — Dynamic weather/time backgrounds, particles, 3D card tilt, holographic UI, modal system, AI assistant with voice, live radar map, city comparison, air quality detail, weather alerts, animated timeline, settings panel, PWA support.</li>
+        <li><strong>v1.0</strong> — Initial dashboard: search, favourites, hourly &amp; 7-day forecast, geolocation, unit toggle.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="shortcutsModal" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts" hidden>
+  <div class="modal-head"><h2>Keyboard shortcuts</h2><button class="modal-close" data-close aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="modal-body">
+    <div class="kbd-row"><kbd>/</kbd><span>Focus search</span></div>
+    <div class="kbd-row"><kbd>U</kbd><span>Toggle °C / °F</span></div>
+    <div class="kbd-row"><kbd>M</kbd><span>Open weather map</span></div>
+    <div class="kbd-row"><kbd>A</kbd><span>Open AI assistant</span></div>
+    <div class="kbd-row"><kbd>S</kbd><span>Open settings</span></div>
+    <div class="kbd-row"><kbd>Esc</kbd><span>Close any panel</span></div>
+    <div class="kbd-row"><kbd>?</kbd><span>Show this list</span></div>
+  </div>
+</div>
+
 <div id="toast" class="toast" hidden></div>
 
-<script src="script.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" defer></script>
+<script src="script.js" defer></script>
 </body>
 </html>
