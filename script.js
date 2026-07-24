@@ -258,6 +258,60 @@ document.querySelectorAll(".tilt").forEach(card => {
   card.addEventListener("mouseleave", () => { card.style.transform = ""; });
 });
 
+/* ---------------- micro-interactions: ripple ---------------- */
+const RIPPLE_SELECTOR = ".icon-btn, .tl-btn, .daytab, .ghost-btn, .add-fav-btn, .fav-card, .assistant-chips button, .seg button, .modal-close, .tab-btn, .assistant-fab";
+document.querySelectorAll(RIPPLE_SELECTOR).forEach(el => el.classList.add("rippleable"));
+document.addEventListener("click", (e) => {
+  const target = e.target.closest(RIPPLE_SELECTOR);
+  if (!target) return;
+  target.classList.add("rippleable");
+  const rect = target.getBoundingClientRect();
+  const size = Math.max(rect.width, rect.height);
+  const dot = document.createElement("span");
+  dot.className = "ripple-dot";
+  dot.style.width = dot.style.height = `${size}px`;
+  dot.style.left = `${e.clientX - rect.left - size/2}px`;
+  dot.style.top = `${e.clientY - rect.top - size/2}px`;
+  target.appendChild(dot);
+  setTimeout(() => dot.remove(), 650);
+});
+// dynamically-added cards (favourites, recents) get ripple too, since
+// they're created after the listener above was attached — event
+// delegation on document already covers them automatically.
+
+/* ---------------- micro-interactions: magnetic buttons ---------------- */
+const MAGNETIC_SELECTOR = ".assistant-fab, #unitToggle, #refreshBtn, #locateBtn, .icon-btn.primary";
+document.querySelectorAll(MAGNETIC_SELECTOR).forEach(el => {
+  el.classList.add("magnetic");
+  el.addEventListener("mousemove", (e) => {
+    if (!state.settings.anim) return;
+    const r = el.getBoundingClientRect();
+    const x = (e.clientX - r.left - r.width/2) * 0.28;
+    const y = (e.clientY - r.top - r.height/2) * 0.28;
+    el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
+  });
+  el.addEventListener("mouseleave", () => { el.style.transform = ""; });
+});
+
+/* ---------------- micro-interactions: animated number counter ---------------- */
+function animateNumber(el, toValue, suffix = ""){
+  const fromValue = parseInt(el.dataset.rawValue || el.textContent, 10);
+  if (!state.settings.anim || Number.isNaN(fromValue) || fromValue === toValue){
+    el.textContent = toValue; el.dataset.rawValue = toValue; return;
+  }
+  const duration = 500;
+  const start = performance.now();
+  function step(now){
+    const t = Math.min((now - start) / duration, 1);
+    const eased = 1 - Math.pow(1 - t, 3);
+    const current = Math.round(fromValue + (toValue - fromValue) * eased);
+    el.textContent = current + suffix;
+    if (t < 1) requestAnimationFrame(step);
+    else el.dataset.rawValue = toValue;
+  }
+  requestAnimationFrame(step);
+}
+
 /* ---------------- render ---------------- */
 function render(){
   if (!state.data) return;
@@ -277,7 +331,7 @@ function render(){
   document.getElementById("heroDesc").textContent = buildDescription(idx);
 
   document.getElementById("currentCity").textContent = `${state.city.name}${state.city.country ? ", " + state.city.country : ""}`;
-  document.getElementById("currentTemp").textContent = round(d.current.temperature_2m);
+  animateNumber(document.getElementById("currentTemp"), round(d.current.temperature_2m));
   document.getElementById("currentDeg").textContent = degSuffix();
   document.getElementById("currentCond").textContent = `${wmo(d.current.weather_code).label} · Feels ${round(d.current.apparent_temperature)}${degSuffix()}`;
   document.getElementById("statWind").textContent = `${round(d.current.wind_speed_10m)} ${windSuffix()}`;
