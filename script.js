@@ -23,10 +23,12 @@ const LS = {
    (console.firebase.google.com → Project settings → your web app)
    ============================================================ */
 const FIREBASE_CONFIG = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  appId: "YOUR_APP_ID",
+  apiKey: "AIzaSyBiuXZPOz95BCKyM-ef1MBDACAVg7l1HY0",
+  authDomain: "atmos-e4fe8.firebaseapp.com",
+  projectId: "atmos-e4fe8",
+  storageBucket: "atmos-e4fe8.firebasestorage.app",
+  messagingSenderId: "951654398859",
+  appId: "1:951654398859:web:5b2eb24fd8041c1189cd8e"
 };
 let authUser = null;
 let authResolved = false;
