@@ -18,6 +18,144 @@ const LS = {
   lang: "atmos_lang",
 };
 
+/* ============================================================
+   FIREBASE AUTH — fill these in from your Firebase project
+   (console.firebase.google.com → Project settings → your web app)
+   ============================================================ */
+const FIREBASE_CONFIG = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+  appId: "YOUR_APP_ID",
+};
+let authUser = null;
+let authResolved = false;
+let resolveAuthReady;
+const authReadyPromise = new Promise((r) => { resolveAuthReady = r; });
+let bootFinished = false; // becomes true once the very first loader→(login|app) transition has run
+
+function initAuth(){
+  try{
+    firebase.initializeApp(FIREBASE_CONFIG);
+  }catch(e){
+    console.error("Firebase init failed — check FIREBASE_CONFIG in script.js", e);
+    resolveAuthReady();
+    return;
+  }
+  firebase.auth().onAuthStateChanged((user) => {
+    const wasSignedOut = !authUser;
+    authUser = user;
+    if (!authResolved){ authResolved = true; resolveAuthReady(); return; }
+    if (!bootFinished) return; // initial boot() handles the first transition itself
+    if (user && wasSignedOut) revealHomeAfterLogin();      // just signed in after boot
+    else if (!user) showLoginStage();                       // just signed out
+  });
+}
+
+/* ---- overlay stage helpers ---- */
+function showSpinnerStage(){
+  document.getElementById("authOverlay").hidden = false;
+  document.getElementById("authOverlay").classList.remove("hide");
+  document.getElementById("authContent").classList.remove("stage-login");
+  document.getElementById("loginCard").hidden = true;
+  document.getElementById("authHomeLoading").hidden = true;
+  document.getElementById("authHomeLoading").classList.remove("show");
+}
+function showLoginStage(){
+  document.getElementById("authOverlay").hidden = false;
+  document.getElementById("authOverlay").classList.remove("hide");
+  document.getElementById("app").hidden = true;
+  document.getElementById("authHomeLoading").hidden = true;
+  document.getElementById("authHomeLoading").classList.remove("show");
+  const content = document.getElementById("authContent");
+  content.classList.add("stage-login");
+  document.getElementById("loginCard").hidden = false;
+}
+function revealHomeAfterLogin(){
+  const homeLoading = document.getElementById("authHomeLoading");
+  homeLoading.hidden = false;
+  requestAnimationFrame(() => homeLoading.classList.add("show"));
+  document.getElementById("loginCard").hidden = true;
+  setTimeout(() => {
+    document.getElementById("authOverlay").classList.add("hide");
+    document.getElementById("app").hidden = false;
+    setTimeout(() => { document.getElementById("authOverlay").hidden = true; }, 650);
+  }, 1100);
+}
+
+/* Google sign-in */
+document.getElementById("googleSignInBtn").addEventListener("click", async () => {
+  try{ await firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider()); }
+  catch(e){ showLoginError(friendlyAuthError(e)); }
+});
+/* Apple sign-in — requires Apple as a provider in Firebase console, which
+   itself requires a paid Apple Developer account to configure a Services ID.
+   The button and code path both work as soon as that's set up. */
+document.getElementById("appleSignInBtn").addEventListener("click", async () => {
+  try{ await firebase.auth().signInWithPopup(new firebase.auth.OAuthProvider("apple.com")); }
+  catch(e){ showLoginError(friendlyAuthError(e)); }
+});
+
+/* Email/password sign in + sign up (toggle) */
+let authMode = "signin";
+document.getElementById("loginToggleBtn").addEventListener("click", () => {
+  authMode = authMode === "signin" ? "signup" : "signin";
+  document.getElementById("loginToggleText").textContent = authMode === "signin" ? "Don't have an account?" : "Already have an account?";
+  document.getElementById("loginToggleBtn").textContent = authMode === "signin" ? "Sign up" : "Sign in";
+  hideLoginError();
+});
+document.getElementById("emailAuthForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const email = document.getElementById("loginEmail").value.trim();
+  const pass = document.getElementById("loginPassword").value;
+  const btn = document.getElementById("loginSubmitBtn");
+  btn.disabled = true; hideLoginError();
+  try{
+    if (authMode === "signin") await firebase.auth().signInWithEmailAndPassword(email, pass);
+    else await firebase.auth().createUserWithEmailAndPassword(email, pass);
+  }catch(e){ showLoginError(friendlyAuthError(e)); }
+  finally{ btn.disabled = false; }
+});
+document.getElementById("togglePassword").addEventListener("click", () => {
+  const input = document.getElementById("loginPassword");
+  input.type = input.type === "password" ? "text" : "password";
+});
+document.getElementById("forgotPasswordBtn").addEventListener("click", async () => {
+  const email = document.getElementById("loginEmail").value.trim();
+  if (!email){ showLoginError("Enter your email above first, then tap Forgot password."); return; }
+  try{
+    await firebase.auth().sendPasswordResetEmail(email);
+    showLoginError("Password reset email sent — check your inbox.");
+  }catch(e){ showLoginError(friendlyAuthError(e)); }
+});
+function showLoginError(msg){ const el = document.getElementById("loginError"); el.textContent = msg; el.hidden = false; }
+function hideLoginError(){ document.getElementById("loginError").hidden = true; }
+function friendlyAuthError(e){
+  const map = {
+    "auth/wrong-password": "Incorrect password.",
+    "auth/user-not-found": "No account with that email — try Sign up.",
+    "auth/email-already-in-use": "That email already has an account — try Sign in.",
+    "auth/weak-password": "Password should be at least 6 characters.",
+    "auth/invalid-email": "That doesn't look like a valid email.",
+    "auth/popup-closed-by-user": "Sign-in was cancelled.",
+    "auth/operation-not-allowed": "That sign-in method isn't enabled yet in Firebase console.",
+  };
+  return map[e.code] || "Something went wrong — please try again.";
+}
+document.getElementById("logoutBtn").addEventListener("click", () => { firebase.auth().signOut(); });
+
+/* ---------------- light / dark theme ---------------- */
+const THEME_KEY = "atmos_theme";
+function applyTheme(theme){
+  document.documentElement.dataset.theme = theme;
+  document.getElementById("themeIconSun").hidden = theme !== "light";
+  document.getElementById("themeIconMoon").hidden = theme === "light";
+  save(THEME_KEY, theme);
+}
+document.getElementById("themeToggle").addEventListener("click", () => {
+  applyTheme(document.documentElement.dataset.theme === "light" ? "dark" : "light");
+});
+
 /* ---------------- state ---------------- */
 const state = {
   unit: localStorage.getItem(LS.unit) || "c",
@@ -970,16 +1108,21 @@ if ("serviceWorker" in navigator){
 /* ============================================================
    BOOT
    ============================================================ */
-function hideLoader(){
-  const loader = document.getElementById("loader");
-  loader.classList.add("hide");
-  document.getElementById("app").hidden = false;
-  setTimeout(() => loader.remove(), 800);
-}
 (async function boot(){
+  const savedTheme = localStorage.getItem(THEME_KEY) || "dark";
+  applyTheme(savedTheme);
   applySettingsToCss(); syncSettingsUI(); updateTheme();
+  initAuth();
   const minLoad = new Promise(r => setTimeout(r, 1500));
   const dataLoad = loadCity(state.city, { persist:false, addRecent:false });
-  await Promise.all([minLoad, dataLoad]);
-  hideLoader();
+  await Promise.all([minLoad, dataLoad, authReadyPromise]);
+
+  if (authUser){
+    // returning, already-signed-in visitor — skip the login card entirely,
+    // go straight from spinner into the brief "setting up dashboard" step.
+    revealHomeAfterLogin();
+  } else {
+    showLoginStage(); // word moves up, spinner fades, login card slides in
+  }
+  bootFinished = true;
 })();
