@@ -1127,4 +1127,25 @@ if ("serviceWorker" in navigator){
     showLoginStage(); // word moves up, spinner fades, login card slides in
   }
   bootFinished = true;
+/* Enable mouse interactions on login card during auth stage */
+function enableAuthInteractions() {
+  const authContent = document.getElementById("authContent");
+  authContent.addEventListener("mousemove", (e) => {
+    const loginCard = document.getElementById("loginCard");
+    if (!loginCard.hidden && state.settings.tilt) {
+      const r = loginCard.getBoundingClientRect();
+      const px = (e.clientX - r.left) / r.width - 0.5;
+      const py = (e.clientY - r.top) / r.height - 0.5;
+      loginCard.style.transform = `perspective(700px) rotateX(${(-py * 6).toFixed(2)}deg) rotateY(${(px * 6).toFixed(2)}deg)`;
+    }
+  });
+  
+  authContent.addEventListener("mouseleave", () => {
+    const loginCard = document.getElementById("loginCard");
+    loginCard.style.transform = "";
+  });
+}
+
+// Call this in boot():
+enableAuthInteractions();
 })();
