@@ -82,7 +82,7 @@ kbd{
   position:fixed;inset:0;z-index:9999;overflow:hidden;
   transition:opacity .6s var(--ease), visibility .6s var(--ease);
 }
-.auth-overlay.hide{opacity:0;visibility:hidden;pointer-events:none;}
+.auth-overlay.hide{opacity:0;visibility:hidden;pointer-events:auto;}
 .auth-bg{
   position:absolute;inset:0;
   background-image:url("assets/background.jpg");background-size:cover;background-position:center 60%;
