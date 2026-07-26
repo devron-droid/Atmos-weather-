@@ -23,12 +23,10 @@ const LS = {
    (console.firebase.google.com → Project settings → your web app)
    ============================================================ */
 const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyBiuXZPOz95BCKyM-ef1MBDACAVg7l1HY0",
-  authDomain: "atmos-e4fe8.firebaseapp.com",
-  projectId: "atmos-e4fe8",
-  storageBucket: "atmos-e4fe8.firebasestorage.app",
-  messagingSenderId: "951654398859",
-  appId: "1:951654398859:web:5b2eb24fd8041c1189cd8e"
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+  appId: "YOUR_APP_ID",
 };
 let authUser = null;
 let authResolved = false;
@@ -85,11 +83,6 @@ function revealHomeAfterLogin(){
   }, 1100);
 }
 
-/* Google sign-in */
-document.getElementById("googleSignInBtn").addEventListener("click", async () => {
-  try{ await firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider()); }
-  catch(e){ showLoginError(friendlyAuthError(e)); }
-});
 /* Apple sign-in — requires Apple as a provider in Firebase console, which
    itself requires a paid Apple Developer account to configure a Services ID.
    The button and code path both work as soon as that's set up. */
@@ -1127,25 +1120,4 @@ if ("serviceWorker" in navigator){
     showLoginStage(); // word moves up, spinner fades, login card slides in
   }
   bootFinished = true;
-/* Enable mouse interactions on login card during auth stage */
-function enableAuthInteractions() {
-  const authContent = document.getElementById("authContent");
-  authContent.addEventListener("mousemove", (e) => {
-    const loginCard = document.getElementById("loginCard");
-    if (!loginCard.hidden && state.settings.tilt) {
-      const r = loginCard.getBoundingClientRect();
-      const px = (e.clientX - r.left) / r.width - 0.5;
-      const py = (e.clientY - r.top) / r.height - 0.5;
-      loginCard.style.transform = `perspective(700px) rotateX(${(-py * 6).toFixed(2)}deg) rotateY(${(px * 6).toFixed(2)}deg)`;
-    }
-  });
-  
-  authContent.addEventListener("mouseleave", () => {
-    const loginCard = document.getElementById("loginCard");
-    loginCard.style.transform = "";
-  });
-}
-
-// Call this in boot():
-enableAuthInteractions();
 })();
