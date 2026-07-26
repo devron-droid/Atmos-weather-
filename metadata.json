@@ -1,0 +1,6 @@
+{
+  "name": "Atmos Weather",
+  "description": "Atmospheric telemetry and live forecasting by Devron Group",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

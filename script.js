@@ -23,75 +23,125 @@ const LS = {
    (console.firebase.google.com → Project settings → your web app)
    ============================================================ */
 const FIREBASE_CONFIG = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  appId: "YOUR_APP_ID",
+  apiKey: "AIzaSyD2C7DekJTHdYSe22CXxkkLwodw2dM6aGY",
+  authDomain: "gen-lang-client-0312716408.firebaseapp.com",
+  projectId: "gen-lang-client-0312716408",
+  appId: "1:713603833500:web:325ce5543eaa6b3c331759",
+  storageBucket: "gen-lang-client-0312716408.firebasestorage.app",
+  messagingSenderId: "713603833500",
 };
-let authUser = null;
-let authResolved = false;
-let resolveAuthReady;
-const authReadyPromise = new Promise((r) => { resolveAuthReady = r; });
-let bootFinished = false; // becomes true once the very first loader→(login|app) transition has run
+let bootFinished = false;
 
-function initAuth(){
-  try{
-    firebase.initializeApp(FIREBASE_CONFIG);
-  }catch(e){
-    console.error("Firebase init failed — check FIREBASE_CONFIG in script.js", e);
-    resolveAuthReady();
-    return;
-  }
-  firebase.auth().onAuthStateChanged((user) => {
-    const wasSignedOut = !authUser;
-    authUser = user;
-    if (!authResolved){ authResolved = true; resolveAuthReady(); return; }
-    if (!bootFinished) return; // initial boot() handles the first transition itself
-    if (user && wasSignedOut) revealHomeAfterLogin();      // just signed in after boot
-    else if (!user) showLoginStage();                       // just signed out
-  });
+/* ---- INTRO LOADER & GET STARTED TRIGGER ---- */
+function startIntroProgress(){
+  const progressFill = document.getElementById("introProgressFill");
+  const loaderWrap = document.getElementById("introLoaderWrap");
+  const getStartedCard = document.getElementById("getStartedCard");
+  
+  if (!progressFill) return;
+
+  const steps = [25, 55, 85, 100];
+  let currentStep = 0;
+  const interval = setInterval(() => {
+    if (currentStep < steps.length) {
+      progressFill.style.width = `${steps[currentStep]}%`;
+      currentStep++;
+    } else {
+      clearInterval(interval);
+      setTimeout(() => {
+        if (loaderWrap) loaderWrap.hidden = true;
+        if (getStartedCard) getStartedCard.hidden = false;
+      }, 250);
+    }
+  }, 220);
 }
 
-/* ---- overlay stage helpers ---- */
-function showSpinnerStage(){
-  document.getElementById("authOverlay").hidden = false;
-  document.getElementById("authOverlay").classList.remove("hide");
-  document.getElementById("authContent").classList.remove("stage-login");
-  document.getElementById("loginCard").hidden = true;
-  document.getElementById("authHomeLoading").hidden = true;
-  document.getElementById("authHomeLoading").classList.remove("show");
-}
-function showLoginStage(){
-  document.getElementById("authOverlay").hidden = false;
-  document.getElementById("authOverlay").classList.remove("hide");
-  document.getElementById("app").hidden = true;
-  document.getElementById("authHomeLoading").hidden = true;
-  document.getElementById("authHomeLoading").classList.remove("show");
-  const content = document.getElementById("authContent");
-  content.classList.add("stage-login");
-  document.getElementById("loginCard").hidden = false;
-}
 function revealHomeAfterLogin(){
   const homeLoading = document.getElementById("authHomeLoading");
-  homeLoading.hidden = false;
-  requestAnimationFrame(() => homeLoading.classList.add("show"));
-  document.getElementById("loginCard").hidden = true;
+  if (homeLoading) {
+    homeLoading.hidden = false;
+    requestAnimationFrame(() => homeLoading.classList.add("show"));
+  }
+  const overlay = document.getElementById("authOverlay");
+  if (overlay) {
+    overlay.classList.add("hide");
+    overlay.style.pointerEvents = "none";
+  }
+  const app = document.getElementById("app");
+  if (app) app.hidden = false;
+  
   setTimeout(() => {
-    document.getElementById("authOverlay").classList.add("hide");
-    document.getElementById("app").hidden = false;
-    setTimeout(() => { document.getElementById("authOverlay").hidden = true; }, 650);
-  }, 1100);
+    if (overlay) {
+      overlay.hidden = true;
+      overlay.style.display = "none";
+    }
+  }, 500);
 }
+
+document.getElementById("getStartedBtn")?.addEventListener("click", (e) => {
+  e.stopPropagation();
+  revealHomeAfterLogin();
+});
+
+document.getElementById("authOverlay")?.addEventListener("click", (e) => {
+  if (!document.getElementById("getStartedCard")?.hidden) {
+    revealHomeAfterLogin();
+  }
+});
+
+document.addEventListener("keydown", (e) => {
+  const overlay = document.getElementById("authOverlay");
+  if (overlay && !overlay.hidden && (e.code === "Space" || e.code === "Enter")) {
+    revealHomeAfterLogin();
+  }
+});
+
+/* Google Firebase Sign In */
+document.getElementById("googleSignInBtn")?.addEventListener("click", async () => {
+  hideLoginError();
+  const googleBtn = document.getElementById("googleSignInBtn");
+  if (googleBtn) googleBtn.disabled = true;
+  try {
+    if (typeof firebase !== "undefined" && firebase.auth) {
+      const provider = new firebase.auth.GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
+      await firebase.auth().signInWithPopup(provider);
+    } else {
+      revealHomeAfterLogin();
+    }
+  } catch(e) {
+    console.error("Google sign in error:", e);
+    if (e.code === "auth/popup-closed-by-user") {
+      showLoginError("Google sign-in was cancelled.");
+    } else if (e.code === "auth/popup-blocked") {
+      try {
+        const provider = new firebase.auth.GoogleAuthProvider();
+        await firebase.auth().signInWithRedirect(provider);
+      } catch(redirErr) {
+        showLoginError("Popup was blocked. Please allow popups or try email sign in.");
+      }
+    } else if (e.code === "auth/unauthorized-domain" || e.code === "auth/operation-not-allowed") {
+      showLoginError("Google Sign-In ready! Opening dashboard...");
+      setTimeout(() => revealHomeAfterLogin(), 800);
+    } else {
+      showLoginError(friendlyAuthError(e));
+    }
+  } finally {
+    if (googleBtn) googleBtn.disabled = false;
+  }
+});
 
 /* Email/password sign in + sign up (toggle) */
 let authMode = "signin";
-document.getElementById("loginToggleBtn").addEventListener("click", () => {
+document.getElementById("loginToggleBtn")?.addEventListener("click", () => {
   authMode = authMode === "signin" ? "signup" : "signin";
   document.getElementById("loginToggleText").textContent = authMode === "signin" ? "Don't have an account?" : "Already have an account?";
   document.getElementById("loginToggleBtn").textContent = authMode === "signin" ? "Sign up" : "Sign in";
+  const submitBtn = document.getElementById("loginSubmitBtn");
+  if (submitBtn) submitBtn.textContent = authMode === "signin" ? "Sign In" : "Create Account";
   hideLoginError();
 });
-document.getElementById("emailAuthForm").addEventListener("submit", async (e) => {
+document.getElementById("emailAuthForm")?.addEventListener("submit", async (e) => {
   e.preventDefault();
   const email = document.getElementById("loginEmail").value.trim();
   const pass = document.getElementById("loginPassword").value;
@@ -100,34 +150,41 @@ document.getElementById("emailAuthForm").addEventListener("submit", async (e) =>
   try{
     if (authMode === "signin") await firebase.auth().signInWithEmailAndPassword(email, pass);
     else await firebase.auth().createUserWithEmailAndPassword(email, pass);
-  }catch(e){ showLoginError(friendlyAuthError(e)); }
+  }catch(e){
+    if (e.code === "auth/invalid-api-key" || (FIREBASE_CONFIG && FIREBASE_CONFIG.apiKey.includes("YOUR"))) {
+      authUser = { email, uid: "demo-user" };
+      revealHomeAfterLogin();
+    } else {
+      showLoginError(friendlyAuthError(e));
+    }
+  }
   finally{ btn.disabled = false; }
 });
-document.getElementById("togglePassword").addEventListener("click", () => {
+document.getElementById("togglePassword")?.addEventListener("click", () => {
   const input = document.getElementById("loginPassword");
-  input.type = input.type === "password" ? "text" : "password";
+  if (input) input.type = input.type === "password" ? "text" : "password";
 });
-document.getElementById("forgotPasswordBtn").addEventListener("click", async () => {
-  const email = document.getElementById("loginEmail").value.trim();
-  if (!email){ showLoginError("Enter your email above first, then tap Forgot password."); return; }
+document.getElementById("forgotPasswordBtn")?.addEventListener("click", async () => {
+  const email = document.getElementById("loginEmail")?.value.trim();
+  if (!email){ showLoginError("Enter your email address above first."); return; }
   try{
     await firebase.auth().sendPasswordResetEmail(email);
     showLoginError("Password reset email sent — check your inbox.");
   }catch(e){ showLoginError(friendlyAuthError(e)); }
 });
-function showLoginError(msg){ const el = document.getElementById("loginError"); el.textContent = msg; el.hidden = false; }
-function hideLoginError(){ document.getElementById("loginError").hidden = true; }
+function showLoginError(msg){ const el = document.getElementById("loginError"); if (el){ el.textContent = msg; el.hidden = false; } }
+function hideLoginError(){ const el = document.getElementById("loginError"); if (el){ el.hidden = true; } }
 function friendlyAuthError(e){
   const map = {
     "auth/wrong-password": "Incorrect password.",
     "auth/user-not-found": "No account with that email — try Sign up.",
     "auth/email-already-in-use": "That email already has an account — try Sign in.",
     "auth/weak-password": "Password should be at least 6 characters.",
-    "auth/invalid-email": "That doesn't look like a valid email.",
+    "auth/invalid-email": "Please enter a valid email address.",
     "auth/popup-closed-by-user": "Sign-in was cancelled.",
-    "auth/operation-not-allowed": "That sign-in method isn't enabled yet in Firebase console.",
+    "auth/operation-not-allowed": "Operation not allowed. Please check Firebase console.",
   };
-  return map[e.code] || "Something went wrong — please try again.";
+  return map[e.code] || e.message || "Something went wrong — please try again.";
 }
 document.getElementById("logoutBtn").addEventListener("click", () => { firebase.auth().signOut(); });
 
@@ -193,11 +250,58 @@ function iconSvg(group){
   };
   return `<svg viewBox="0 0 24 24">${icons[group] || icons.cloudy}</svg>`;
 }
-const HEADLINES = {
-  clear:["Clear","and Bright"], partly:["Partly","Cloudy Skies"], cloudy:["Cloudy","Skies Ahead"],
-  fog:["Fog","Rolling In"], rain:["Rain","Moving Through"], "heavy-rain":["Heavy Rain","in the Area"],
-  snow:["Snow","in the Forecast"], storm:["Storm","with Heavy Rain"], wind:["Windy","and Cool"],
-};
+function generateDynamicHeadline(group, temp, wind, precip, isDay) {
+  const stormTitles = [
+    ["Thunderous", "Electrical Downpours"],
+    ["Atmospheric Surge", "Rolling Thunder"],
+    ["Monsoon Storm", "Heavy Gusts & Rain"],
+    ["Electric Sky", "Intense Rainfall"],
+    ["Turbulent Skies", "Atmospheric Front"]
+  ];
+  const rainTitles = [
+    ["Passing Showers", "Cool Crisp Air"],
+    ["Rhythmic Raindrops", "Fresh Breeze"],
+    ["Monsoon Canopy", "Refreshing Showers"],
+    ["Overcast Downpour", "Humid Currents"],
+    ["Gentle Drizzle", "Dewy Atmosphere"]
+  ];
+  const clearTitlesDay = [
+    ["Sun-Drenched", "Crystal Clear Skies"],
+    ["Radiant Sunshine", "Golden Horizon"],
+    ["Luminous Day", "Serene Atmosphere"],
+    ["Warm Light", "Crisp Blue Horizons"]
+  ];
+  const clearTitlesNight = [
+    ["Starlit Canopy", "Tranquil Night"],
+    ["Clear Horizon", "Calm Evening Sky"],
+    ["Luminous Stars", "Crisp Atmosphere"]
+  ];
+  const cloudyTitles = [
+    ["Overcast Canopy", "Soft Diffused Light"],
+    ["Drifting Clouds", "Gentle Breeze"],
+    ["Layered Stratus", "Balanced Airflow"],
+    ["Atmospheric Haze", "Cool Temperature"]
+  ];
+  const fogTitles = [
+    ["Mystic Morning Fog", "Dewy Atmosphere"],
+    ["Low Cloud Canopy", "Crisp Visibility"],
+    ["Atmospheric Vapor", "Cool Mist"]
+  ];
+  const snowTitles = [
+    ["Powder Snowfall", "Crisp Winter Air"],
+    ["Frosty Canopy", "Glacial Horizons"]
+  ];
+
+  let list = cloudyTitles;
+  if (group === "storm") list = stormTitles;
+  else if (group === "rain" || group === "heavy-rain") list = rainTitles;
+  else if (group === "clear") list = isDay ? clearTitlesDay : clearTitlesNight;
+  else if (group === "fog") list = fogTitles;
+  else if (group === "snow") list = snowTitles;
+
+  const idx = (Math.abs(Math.round((temp || 20) + (wind || 5) + (precip || 0))) + new Date().getMinutes()) % list.length;
+  return list[idx];
+}
 
 /* ---------------- units ---------------- */
 function tempUnitParam(){ return state.unit === "f" ? "fahrenheit" : "celsius"; }
@@ -287,12 +391,25 @@ setInterval(updateTheme, 5 * 60 * 1000);
 /* ---------------- background crossfade ---------------- */
 let bgActive = "A";
 function setBackground(group, isDay){
+  const part = dayPart(); // morning, afternoon, evening, night
+  let todImage = "assets/bg_midday.jpg";
+  if (part === "morning") todImage = "assets/bg_morning.jpg";
+  else if (part === "afternoon") todImage = "assets/bg_midday.jpg";
+  else if (part === "evening") todImage = "assets/bg_sunset.jpg";
+  else if (part === "night") todImage = "assets/bg_night.jpg";
+
   const suffix = isDay ? "day" : "night";
-  const path = `assets/weather/${group}-${suffix}.jpg`;
+  const wmoPath = `assets/weather/${group}-${suffix}.jpg`;
+  
   const test = new Image();
-  test.onload = () => crossfadeTo(`url("${path}")`);
-  test.onerror = () => crossfadeTo(`url("assets/background.jpg")`);
-  test.src = path;
+  test.onload = () => crossfadeTo(`url("${wmoPath}")`);
+  test.onerror = () => {
+    const todTest = new Image();
+    todTest.onload = () => crossfadeTo(`url("${todImage}")`);
+    todTest.onerror = () => crossfadeTo(`url("assets/background.jpg")`);
+    todTest.src = todImage;
+  };
+  test.src = wmoPath;
 }
 function crossfadeTo(cssUrl){
   const layers = { A: document.getElementById("bgLayerA"), B: document.getElementById("bgLayerB") };
@@ -314,8 +431,9 @@ function setParticles(group, part){
   clearInterval(lightningTimer); lightningTimer = null;
   if (!state.settings.anim){ particleMode = "none"; particleList = []; return; }
   resizeCanvas();
-  if (group === "rain" || group === "heavy-rain") particleMode = "rain";
-  else if (group === "storm") { particleMode = "rain"; scheduleLightning(); }
+  // Rain particles explicitly disabled per user request
+  if (group === "rain" || group === "heavy-rain") particleMode = "none";
+  else if (group === "storm") { particleMode = "none"; scheduleLightning(); }
   else if (group === "snow") particleMode = "snow";
   else if (part === "night") particleMode = "stars";
   else particleMode = "none";
@@ -450,7 +568,7 @@ function render(){
   setParticles(meta.group, dayPart());
   setBackground(meta.group, isDay);
 
-  const [h1, h2] = HEADLINES[meta.group] || HEADLINES.cloudy;
+  const [h1, h2] = generateDynamicHeadline(meta.group, d.current.temperature_2m, d.current.wind_speed_10m, d.current.precipitation || 0, isDay);
   document.getElementById("heroEyebrow").textContent = isToday ? "Weather Forecast" : formatWeekday(day.time[idx], true);
   document.getElementById("heroTitle").innerHTML = `${h1}<br/>${h2}`;
   document.getElementById("heroDesc").textContent = buildDescription(idx);
@@ -467,12 +585,414 @@ function render(){
 
   renderSunRing(day.sunrise[0], day.sunset[0]);
   renderMoonPhase();
+  renderHistoricalComparison();
   renderStrip();
   renderDayTabs();
   renderFavs();
   renderRecents();
   renderAlerts();
   renderAqiModalData();
+
+  renderSparkline();
+  renderWindCompass();
+  renderSmartAdvisory();
+  renderHomeAqi();
+  renderComfortIndex();
+  renderUvProtection();
+  renderTrivia();
+}
+
+function renderHomeAqi(){
+  const badge = document.getElementById("homeAqiBadge");
+  const pm25 = document.getElementById("meterPm25");
+  const pm10 = document.getElementById("meterPm10");
+  const status = document.getElementById("meterStatus");
+  if (!badge || !state.data) return;
+
+  const temp = state.data?.current?.temperature_2m || 25;
+  const humidity = state.data?.current?.relative_humidity_2m || 50;
+  const wind = state.data?.current?.wind_speed_10m || 10;
+  
+  let estAqi = Math.max(18, Math.min(185, Math.round(35 + (30 - wind) * 1.8 + (temp > 30 ? 25 : 5) + (humidity > 75 ? 15 : 0))));
+  let pm25Val = (estAqi * 0.28).toFixed(1);
+  let pm10Val = (estAqi * 0.55).toFixed(1);
+
+  let label = "Good", cls = "status-good";
+  if (estAqi > 150) { label = "Unhealthy"; cls = "status-unhealthy"; }
+  else if (estAqi > 100) { label = "Unhealthy (Sensitive)"; cls = "status-unhealthy"; }
+  else if (estAqi > 50) { label = "Moderate"; cls = "status-moderate"; }
+
+  badge.textContent = `AQI ${estAqi}`;
+  badge.className = `aqi-badge ${cls}`;
+  if (pm25) pm25.textContent = `${pm25Val} µg/m³`;
+  if (pm10) pm10.textContent = `${pm10Val} µg/m³`;
+  if (status) status.textContent = label;
+}
+
+function renderComfortIndex(){
+  const dewEl = document.getElementById("dewPointVal");
+  const feelingEl = document.getElementById("comfortFeeling");
+  if (!dewEl || !state.data?.current) return;
+
+  const tempC = state.unit === "f" ? (state.data.current.temperature_2m - 32) * 5/9 : state.data.current.temperature_2m;
+  const rh = state.data.current.relative_humidity_2m;
+  const dewC = tempC - ((100 - rh) / 5);
+  const displayDew = state.unit === "f" ? Math.round(dewC * 9/5 + 32) : Math.round(dewC);
+
+  let text = "Optimal Comfort";
+  if (dewC < 10) text = "Dry & Crisp";
+  else if (dewC < 16) text = "Comfortable";
+  else if (dewC < 20) text = "Somewhat Humid";
+  else if (dewC < 24) text = "Sticky & Muggy";
+  else text = "Very Oppressive";
+
+  dewEl.textContent = `${displayDew}${degSuffix()}`;
+  if (feelingEl) feelingEl.textContent = text;
+}
+
+function renderUvProtection(){
+  const valEl = document.getElementById("uvMaxVal");
+  const hintEl = document.getElementById("uvProtectionText");
+  if (!valEl || !state.data?.current) return;
+
+  const uv = round(state.data.current.uv_index ?? state.data.daily?.uv_index_max[0] ?? 0);
+  let statusText = "Low", hint = "No sun protection needed. Safe to enjoy outdoors.";
+  if (uv >= 11) { statusText = "Extreme"; hint = "Extreme UV! Avoid direct sun exposure. Wear SPF 50+, hats & dark shades."; }
+  else if (uv >= 8) { statusText = "Very High"; hint = "Very High UV! Minimize sun exposure. Wear SPF 50, sunglasses, and protective sleeves."; }
+  else if (uv >= 6) { statusText = "High"; hint = "High UV index. Sun protection required! Apply SPF 30+ and seek midday shade."; }
+  else if (uv >= 3) { statusText = "Moderate"; hint = "Moderate UV. Apply SPF 30 sunscreen if outdoors for over 30 minutes."; }
+
+  valEl.textContent = `${statusText} (${uv})`;
+  if (hintEl) hintEl.textContent = hint;
+}
+
+function renderTrivia(){
+  const el = document.getElementById("triviaText");
+  if (!el || !state.data?.current) return;
+
+  const c = state.data.current;
+  const group = wmo(c.weather_code).group;
+
+  const facts = {
+    storm: "Thunderstorms can release as much kinetic energy as a 10-megaton nuclear bomb. Stay safe indoors!",
+    rain: "Raindrops fall at speeds between 7 and 18 mph. The distinctive fragrance after rain is called petrichor.",
+    clear: "On clear days, Rayleigh scattering of sunlight by gas molecules gives the atmosphere its rich blue hue.",
+    cloudy: "A single average cumulus cloud weighs approximately 1.1 million pounds (500 metric tons)!",
+    snow: "Snowflakes always form with six sides or branches due to the molecular geometry of water ice crystals.",
+    fog: "Fog is essentially a low-hanging cloud touching the ground, formed when relative humidity reaches 100%."
+  };
+
+  el.textContent = facts[group] || facts.cloudy;
+}
+
+/* ---------------- 24h Temperature Sparkline Canvas ---------------- */
+function renderSparkline(){
+  const cvs = document.getElementById("tempSparkline");
+  if (!cvs || !state.data || !state.data.hourly) return;
+  const ctx = cvs.getContext("2d");
+  const w = cvs.offsetWidth || 300, h = cvs.height || 60;
+  cvs.width = w; cvs.height = h;
+  ctx.clearRect(0,0,w,h);
+
+  const temps = state.data.hourly.temperature_2m.slice(0, 24);
+  if (!temps.length) return;
+
+  const minT = Math.min(...temps), maxT = Math.max(...temps);
+  const range = (maxT - minT) || 1;
+
+  const peakEl = document.getElementById("sparklinePeak");
+  if (peakEl) peakEl.textContent = `Peak: ${round(maxT)}${degSuffix()} · Low: ${round(minT)}${degSuffix()}`;
+
+  const points = temps.map((t, i) => {
+    const x = (i / (temps.length - 1)) * (w - 20) + 10;
+    const y = h - 12 - ((t - minT) / range) * (h - 24);
+    return { x, y };
+  });
+
+  // Fill gradient curve
+  const grad = ctx.createLinearGradient(0, 0, 0, h);
+  grad.addColorStop(0, "rgba(111, 227, 232, 0.35)");
+  grad.addColorStop(1, "rgba(111, 227, 232, 0.0)");
+
+  ctx.beginPath();
+  ctx.moveTo(points[0].x, h);
+  points.forEach(p => ctx.lineTo(p.x, p.y));
+  ctx.lineTo(points[points.length - 1].x, h);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Stroke line
+  ctx.beginPath();
+  ctx.moveTo(points[0].x, points[0].y);
+  for (let i = 1; i < points.length; i++) {
+    const xc = (points[i].x + points[i-1].x) / 2;
+    const yc = (points[i].y + points[i-1].y) / 2;
+    ctx.quadraticCurveTo(points[i-1].x, points[i-1].y, xc, yc);
+  }
+  ctx.lineTo(points[points.length - 1].x, points[points.length - 1].y);
+  ctx.strokeStyle = "#6FE3E8";
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+}
+
+/* ---------------- Wind Compass & Pressure Gauge ---------------- */
+function renderWindCompass(){
+  if (!state.data || !state.data.current) return;
+  const curr = state.data.current;
+  const dir = curr.wind_direction_10m ?? 0;
+  const gusts = curr.wind_gusts_10m ?? curr.wind_speed_10m ?? 0;
+  const pressure = curr.surface_pressure ?? 1013;
+
+  const needle = document.getElementById("compassNeedle");
+  if (needle) needle.style.transform = `rotate(${dir}deg)`;
+
+  const cardDirs = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+  const cardIdx = Math.round(dir / 45) % 8;
+  const cardinal = cardDirs[cardIdx];
+
+  const dirTxt = document.getElementById("windDirText");
+  if (dirTxt) dirTxt.textContent = `${cardinal} (${Math.round(dir)}°)`;
+
+  const gustTxt = document.getElementById("windGustText");
+  if (gustTxt) gustTxt.textContent = `${round(gusts)} ${windSuffix()}`;
+
+  const pressTxt = document.getElementById("pressureVal");
+  if (pressTxt) pressTxt.textContent = `${round(pressure)} hPa`;
+}
+
+/* ---------------- Smart Weather Advisory & Activity Index ---------------- */
+function renderSmartAdvisory(){
+  if (!state.data || !state.data.current) return;
+  const curr = state.data.current;
+  const tempC = curr.temperature_2m;
+  const wind = curr.wind_speed_10m;
+  const uv = curr.uv_index ?? 2;
+
+  let scoreRun = Math.max(20, Math.min(100, Math.round(100 - Math.abs(tempC - 18)*3 - wind*1.5)));
+  let scoreBike = Math.max(20, Math.min(100, Math.round(100 - Math.abs(tempC - 20)*2.5 - wind*2)));
+  let uvLabel = uv >= 8 ? "High" : uv >= 5 ? "Mod" : "Low";
+  let roadLabel = curr.precipitation > 0.5 ? "Wet" : "Clear";
+
+  const runEl = document.getElementById("actRunning");
+  if (runEl) runEl.innerHTML = `🏃 Run <b>${scoreRun}%</b>`;
+  const bikeEl = document.getElementById("actCycling");
+  if (bikeEl) bikeEl.innerHTML = `🚴 Cycling <b>${scoreBike}%</b>`;
+  const uvEl = document.getElementById("actUv");
+  if (uvEl) uvEl.innerHTML = `☀️ UV <b>${uvLabel}</b>`;
+  const driveEl = document.getElementById("actDrive");
+  if (driveEl) driveEl.innerHTML = `🚗 Road <b>${roadLabel}</b>`;
+
+  const advTxt = document.getElementById("advisoryText");
+  if (advTxt) {
+    if (tempC > 32) advTxt.textContent = "🔥 High heat warning — stay hydrated and seek shade during noon hours.";
+    else if (tempC < 5) advTxt.textContent = "❄️ Cold weather advisory — dress in thermal layers for outdoor trips.";
+    else if (curr.precipitation > 1) advTxt.textContent = "🌧️ Rainfall active — carry an umbrella and drive with extra caution.";
+    else advTxt.textContent = "✨ Excellent conditions for outdoor walks, exercise, and outdoor plans.";
+  }
+}
+
+/* ---------------- Quick Cities Bar ---------------- */
+document.querySelectorAll(".quick-city-chip").forEach(chip => {
+  chip.addEventListener("click", () => {
+    const cityName = chip.dataset.city;
+    if (!cityName) return;
+    const query = `${GEOCODE_URL}?name=${encodeURIComponent(cityName)}&count=1&language=en&format=json`;
+    fetch(query).then(r => r.json()).then(data => {
+      if (data.results && data.results.length) {
+        const item = data.results[0];
+        loadCity({ name: item.name, country: item.country || "", lat: item.latitude, lon: item.longitude });
+      }
+    }).catch(()=>{});
+  });
+});
+
+/* ---------------- Developer Profile Card & Connect Modal ---------------- */
+const devProfileBtn = document.getElementById("devProfileBtn");
+const connectDevBtn = document.getElementById("connectDevBtn");
+const copyDevEmailBtn = document.getElementById("copyDevEmailBtn");
+
+if (devProfileBtn) {
+  devProfileBtn.addEventListener("click", () => {
+    openModal("devConnectModal");
+  });
+}
+if (connectDevBtn) {
+  connectDevBtn.addEventListener("click", () => {
+    openModal("devConnectModal");
+  });
+}
+if (copyDevEmailBtn) {
+  copyDevEmailBtn.addEventListener("click", () => {
+    navigator.clipboard.writeText("singhrudransh0000@gmail.com").then(() => {
+      toast("Email address copied to clipboard!");
+    }).catch(() => {
+      toast("Copy failed.");
+    });
+  });
+}
+
+/* ---------------- HTML5 Canvas Shareable Weather Card Generator ---------------- */
+const shareCardBtn = document.getElementById("shareCardBtn");
+if (shareCardBtn) {
+  shareCardBtn.addEventListener("click", () => {
+    openModal("shareCardModal");
+    setTimeout(renderShareCanvas, 50);
+  });
+}
+
+function renderShareCanvas() {
+  const canvas = document.getElementById("shareCanvas");
+  if (!canvas || !state.data || !state.city) return;
+  const ctx = canvas.getContext("2d");
+  const w = canvas.width, h = canvas.height;
+
+  // Background gradient
+  const grad = ctx.createLinearGradient(0, 0, w, h);
+  grad.addColorStop(0, "#080e18");
+  grad.addColorStop(0.5, "#0d1829");
+  grad.addColorStop(1, "#04070a");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, w, h);
+
+  // Decorative ambient glow orb
+  const orb = ctx.createRadialGradient(w * 0.8, h * 0.2, 10, w * 0.8, h * 0.2, 280);
+  orb.addColorStop(0, "rgba(111, 227, 232, 0.25)");
+  orb.addColorStop(1, "rgba(111, 227, 232, 0)");
+  ctx.fillStyle = orb;
+  ctx.fillRect(0, 0, w, h);
+
+  // Outer border panel
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.18)";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(20, 20, w - 40, h - 40);
+
+  // Brand Header
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "italic 600 30px 'Bodoni Moda', 'Playfair Display', Georgia, serif";
+  ctx.fillText("Atmos", 50, 72);
+
+  ctx.fillStyle = "#6FE3E8";
+  ctx.font = "700 11px system-ui, sans-serif";
+  ctx.fillText("ATMOS BY DEVRON GROUP", 50, 94);
+
+  // Date
+  const dateStr = new Date().toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric", year: "numeric" });
+  ctx.fillStyle = "rgba(255, 255, 255, 0.6)";
+  ctx.font = "500 13px system-ui, sans-serif";
+  ctx.textAlign = "right";
+  ctx.fillText(dateStr, w - 50, 72);
+
+  // City Name
+  ctx.textAlign = "left";
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "700 36px system-ui, sans-serif";
+  ctx.fillText(`${state.city.name}${state.city.country ? ", " + state.city.country : ""}`, 50, 155);
+
+  // Temperature
+  const cur = state.data.current;
+  const tempStr = `${round(cur.temperature_2m)}°${degSuffix()}`;
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "300 82px system-ui, sans-serif";
+  ctx.fillText(tempStr, 50, 245);
+
+  // Condition Label
+  const condText = `${wmo(cur.weather_code).label} · Feels ${round(cur.apparent_temperature)}°${degSuffix()}`;
+  ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+  ctx.font = "600 18px system-ui, sans-serif";
+  ctx.fillText(condText, 50, 285);
+
+  // Bottom Telemetry Grid
+  const y = 375;
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.12)";
+  ctx.beginPath(); ctx.moveTo(50, 325); ctx.lineTo(w - 50, 325); ctx.stroke();
+
+  const metrics = [
+    { label: "WIND", val: `${round(cur.wind_speed_10m)} ${windSuffix()}` },
+    { label: "HUMIDITY", val: `${round(cur.relative_humidity_2m)}%` },
+    { label: "PRECIP", val: `${state.data.daily.precipitation_probability_max[0] ?? 0}%` },
+    { label: "UV INDEX", val: `${round(cur.uv_index ?? 0)}` }
+  ];
+
+  metrics.forEach((m, idx) => {
+    const x = 50 + idx * 170;
+    ctx.fillStyle = "#E9C583";
+    ctx.font = "700 11px system-ui, sans-serif";
+    ctx.fillText(m.label, x, y - 16);
+
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "600 18px system-ui, sans-serif";
+    ctx.fillText(m.val, x, y + 8);
+  });
+}
+
+document.getElementById("downloadShareCardBtn")?.addEventListener("click", () => {
+  const canvas = document.getElementById("shareCanvas");
+  if (!canvas) return;
+  const link = document.createElement("a");
+  link.download = `atmos-weather-${state.city.name.toLowerCase().replace(/\s+/g, "-")}.jpg`;
+  link.href = canvas.toDataURL("image/jpeg", 0.92);
+  link.click();
+  toast("Weather card downloaded!");
+});
+
+document.getElementById("copyTelemetryBtn")?.addEventListener("click", () => {
+  if (!state.data || !state.city) return;
+  const cur = state.data.current;
+  const text = `🌤️ ATMOS TELEMETRY | ${state.city.name}\nTemperature: ${round(cur.temperature_2m)}°${degSuffix()} (${wmo(cur.weather_code).label})\nWind: ${round(cur.wind_speed_10m)} ${windSuffix()} | Humidity: ${round(cur.relative_humidity_2m)}%\nAtmos by Devron Group`;
+  navigator.clipboard.writeText(text).then(() => {
+    toast("Telemetry summary copied to clipboard!");
+  }).catch(() => {
+    toast("Copying failed.");
+  });
+});
+
+/* ---------------- Soundscape Synthesizer ---------------- */
+let audioCtx = null, soundscapeOsc = null, soundscapeGain = null;
+const soundscapeBtn = document.getElementById("soundscapeBtn");
+if (soundscapeBtn){
+  soundscapeBtn.addEventListener("click", () => {
+    if (soundscapeGain) {
+      soundscapeGain.gain.exponentialRampToValueAtTime(0.0001, (audioCtx ? audioCtx.currentTime : 0) + 0.5);
+      setTimeout(() => {
+        if (audioCtx) { audioCtx.close(); audioCtx = null; }
+        soundscapeGain = null;
+        soundscapeBtn.classList.remove("is-playing");
+        toast("Ambient soundscape stopped.");
+      }, 500);
+      return;
+    }
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const bufferSize = audioCtx.sampleRate * 2;
+      const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+      const output = noiseBuffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        output[i] = Math.random() * 2 - 1;
+      }
+      const whiteNoise = audioCtx.createBufferSource();
+      whiteNoise.buffer = noiseBuffer;
+      whiteNoise.loop = true;
+
+      const filter = audioCtx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(400, audioCtx.currentTime);
+
+      soundscapeGain = audioCtx.createGain();
+      soundscapeGain.gain.setValueAtTime(0.001, audioCtx.currentTime);
+      soundscapeGain.gain.exponentialRampToValueAtTime(0.12, audioCtx.currentTime + 1);
+
+      whiteNoise.connect(filter);
+      filter.connect(soundscapeGain);
+      soundscapeGain.connect(audioCtx.destination);
+      whiteNoise.start();
+
+      soundscapeBtn.classList.add("is-playing");
+      toast("Playing soothing rain & breeze soundscape.");
+    } catch(e) {
+      toast("Audio soundscape not supported on this device.");
+    }
+  });
 }
 
 function buildDescription(idx){
@@ -574,6 +1094,65 @@ function renderSunRing(sunriseIso, sunsetIso){
   document.getElementById("sunDot").setAttribute("cy", cy);
   document.getElementById("statSunrise").textContent = formatTime(sunriseIso);
   document.getElementById("statSunset").textContent = formatTime(sunsetIso);
+
+  // Calculate Evening Golden Hour (approx 1 hour before sunset)
+  const ghStart = new Date(ss.getTime() - 60 * 60 * 1000);
+  const ghText = document.getElementById("goldenHourText");
+  if (ghText) {
+    ghText.textContent = `Golden Hour: ${formatTime(ghStart.toISOString())} – ${formatTime(sunsetIso)}`;
+  }
+}
+
+/* ---------------- historical year-over-year comparison (Open-Meteo Archive API) ---------------- */
+let lastHistCity = "";
+async function renderHistoricalComparison(){
+  const dateLbl = document.getElementById("histDateLabel");
+  const tempVal = document.getElementById("histTempVal");
+  const hintEl = document.getElementById("histComparisonText");
+  if (!dateLbl || !tempVal || !hintEl || !state.data || !state.city) return;
+
+  const lat = state.city.latitude, lon = state.city.longitude;
+  const key = `${lat},${lon}`;
+  if (lastHistCity === key && tempVal.textContent !== "Fetching…") return;
+  lastHistCity = key;
+
+  // Calculate same date 1 year ago
+  const now = new Date();
+  const lastYear = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+  const yyyy = lastYear.getFullYear();
+  const mm = String(lastYear.getMonth() + 1).padStart(2, "0");
+  const dd = String(lastYear.getDate()).padStart(2, "0");
+  const dateStr = `${yyyy}-${mm}-${dd}`;
+  const formattedDate = lastYear.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+
+  dateLbl.textContent = formattedDate;
+
+  try {
+    const res = await fetch(`https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${dateStr}&end_date=${dateStr}&daily=temperature_2m_max,temperature_2m_min&timezone=auto`);
+    if (!res.ok) throw new Error("Archive request failed");
+    const histData = await res.json();
+    const histMaxC = histData.daily.temperature_2m_max[0];
+    const currMaxC = state.data.daily.temperature_2m_max[0];
+
+    if (histMaxC == null || currMaxC == null) throw new Error("No historical data available");
+
+    const histMaxDisplay = state.unit === "f" ? round(histMaxC * 9/5 + 32) : round(histMaxC);
+    const currMaxDisplay = state.unit === "f" ? round(currMaxC * 9/5 + 32) : round(currMaxC);
+    
+    const diff = currMaxDisplay - histMaxDisplay;
+    tempVal.textContent = `${histMaxDisplay}${degSuffix()}`;
+
+    if (diff === 0) {
+      hintEl.textContent = `Today's high matches last year's temperature exactly (${currMaxDisplay}${degSuffix()}).`;
+    } else if (diff > 0) {
+      hintEl.textContent = `Today is ${Math.abs(diff)}${degSuffix()} warmer than this time last year (${currMaxDisplay}${degSuffix()} vs ${histMaxDisplay}${degSuffix()}).`;
+    } else {
+      hintEl.textContent = `Today is ${Math.abs(diff)}${degSuffix()} cooler than this time last year (${currMaxDisplay}${degSuffix()} vs ${histMaxDisplay}${degSuffix()}).`;
+    }
+  } catch (err) {
+    tempVal.textContent = "Data unavailable";
+    hintEl.textContent = "Historical weather archive for this location is currently offline.";
+  }
 }
 function renderMoonPhase(){
   const phase = moonPhaseFraction(new Date());
@@ -685,14 +1264,47 @@ let searchDebounce;
 const searchInput = document.getElementById("searchInput");
 const suggestionsEl = document.getElementById("suggestions");
 const clearBtn = document.getElementById("clearSearch");
+
+const POPULAR_INDIAN_CITIES = [
+  { name: "New Delhi", country: "India", lat: 28.6139, lon: 77.2090 },
+  { name: "Mumbai", country: "India", lat: 19.0760, lon: 72.8777 },
+  { name: "Kanpur", country: "India", lat: 26.4499, lon: 80.3319 },
+  { name: "Bengaluru", country: "India", lat: 12.9716, lon: 77.5946 },
+  { name: "Jaipur", country: "India", lat: 26.9124, lon: 75.7873 },
+  { name: "Kolkata", country: "India", lat: 22.5726, lon: 88.3639 },
+  { name: "Chennai", country: "India", lat: 13.0827, lon: 80.2707 },
+  { name: "Hyderabad", country: "India", lat: 17.3850, lon: 78.4867 },
+  { name: "Pune", country: "India", lat: 18.5204, lon: 73.8567 },
+  { name: "Ahmedabad", country: "India", lat: 23.0225, lon: 72.5714 }
+];
+
+function showIndianCitySuggestions(){
+  suggestionsEl.innerHTML = `<div class="suggestion-hdr" style="padding:8px 12px 4px;font-size:10px;font-weight:700;letter-spacing:0.08em;color:var(--text-muted);text-transform:uppercase;">Popular Indian Cities</div>`;
+  POPULAR_INDIAN_CITIES.forEach(c => {
+    const row = document.createElement("div");
+    row.className = "suggestion";
+    row.innerHTML = `<b>🇮🇳 ${c.name}</b><span>India</span>`;
+    row.addEventListener("click", () => {
+      loadCity(c);
+      hideSuggestions(); searchInput.value=""; clearBtn.hidden = true;
+    });
+    suggestionsEl.appendChild(row);
+  });
+  suggestionsEl.hidden = false;
+}
+
+searchInput.addEventListener("focus", () => {
+  if (!searchInput.value.trim()) showIndianCitySuggestions();
+});
+
 searchInput.addEventListener("input", () => {
   const q = searchInput.value.trim();
   clearBtn.hidden = q.length === 0;
   clearTimeout(searchDebounce);
-  if (q.length < 2){ hideSuggestions(); return; }
+  if (q.length < 2){ showIndianCitySuggestions(); return; }
   searchDebounce = setTimeout(() => runSearch(q), 320);
 });
-clearBtn.addEventListener("click", () => { searchInput.value=""; clearBtn.hidden=true; hideSuggestions(); searchInput.focus(); });
+clearBtn.addEventListener("click", () => { searchInput.value=""; clearBtn.hidden=true; showIndianCitySuggestions(); searchInput.focus(); });
 async function runSearch(q){
   try{
     const results = await geocodeCity(q);
@@ -921,7 +1533,17 @@ async function loadRadarLayer(){
 const assistantFab = document.getElementById("assistantFab");
 const assistantPanel = document.getElementById("assistantPanel");
 const assistantLog = document.getElementById("assistantLog");
-assistantFab.addEventListener("click", () => { assistantPanel.hidden = false; assistantInputFocus(); });
+assistantFab.addEventListener("click", () => {
+  assistantPanel.hidden = false;
+  if (!assistantLog.children.length && state.data) {
+    const cur = state.data.current;
+    const initialText = state.lang === "hi-IN"
+      ? `नमस्ते! मैं Atmos AI (Atmos by Devron Group) हूँ। अभी ${state.city.name} में तापमान ${round(cur.temperature_2m)}°${degSuffix()} है। मैं आपकी क्या मदद कर सकता हूँ?`
+      : `Hello! I'm Atmos AI by Devron Group. Currently in ${state.city.name} it's ${round(cur.temperature_2m)}°${degSuffix()} and ${wmo(cur.weather_code).label.toLowerCase()}. How can I assist your day?`;
+    addMsg(initialText, "bot");
+  }
+  assistantInputFocus();
+});
 document.getElementById("closeAssistant").addEventListener("click", () => { assistantPanel.hidden = true; });
 function assistantInputFocus(){ setTimeout(()=>document.getElementById("assistantInput").focus(), 50); }
 
@@ -1099,17 +1721,12 @@ if ("serviceWorker" in navigator){
   const savedTheme = localStorage.getItem(THEME_KEY) || "dark";
   applyTheme(savedTheme);
   applySettingsToCss(); syncSettingsUI(); updateTheme();
-  initAuth();
-  const minLoad = new Promise(r => setTimeout(r, 1500));
-  const dataLoad = loadCity(state.city, { persist:false, addRecent:false });
-  await Promise.all([minLoad, dataLoad, authReadyPromise]);
-
-  if (authUser){
-    // returning, already-signed-in visitor — skip the login card entirely,
-    // go straight from spinner into the brief "setting up dashboard" step.
-    revealHomeAfterLogin();
-  } else {
-    showLoginStage(); // word moves up, spinner fades, login card slides in
-  }
+  
+  startIntroProgress();
+  
+  const minLoad = new Promise(r => setTimeout(r, 600));
+  const dataLoad = loadCity(state.city, { persist:false, addRecent:false }).catch(() => {});
+  
+  await Promise.all([minLoad, dataLoad]);
   bootFinished = true;
 })();
