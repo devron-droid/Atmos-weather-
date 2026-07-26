@@ -83,14 +83,6 @@ function revealHomeAfterLogin(){
   }, 1100);
 }
 
-/* Apple sign-in — requires Apple as a provider in Firebase console, which
-   itself requires a paid Apple Developer account to configure a Services ID.
-   The button and code path both work as soon as that's set up. */
-document.getElementById("appleSignInBtn").addEventListener("click", async () => {
-  try{ await firebase.auth().signInWithPopup(new firebase.auth.OAuthProvider("apple.com")); }
-  catch(e){ showLoginError(friendlyAuthError(e)); }
-});
-
 /* Email/password sign in + sign up (toggle) */
 let authMode = "signin";
 document.getElementById("loginToggleBtn").addEventListener("click", () => {

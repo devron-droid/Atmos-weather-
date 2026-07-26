@@ -161,16 +161,7 @@ kbd{
 .gradient-btn:disabled{opacity:.65;pointer-events:none;}
 @keyframes gradientShift{to{background-position:300% 0;}}
 
-.login-divider{display:flex;align-items:center;gap:10px;color:var(--ink-faint);font-size:11px;margin:20px 0 16px;}
-.login-divider::before,.login-divider::after{content:"";flex:1;height:1px;background:rgba(255,255,255,.12);}
-.social-row{display:flex;gap:10px;justify-content:center;}
-.social-btn{
-  width:46px;height:46px;border-radius:14px;background:rgba(255,255,255,.06);
-  border:1px solid var(--panel-border);color:#fff;display:flex;align-items:center;justify-content:center;
-  transition:background .2s, transform .15s;
-}
-.social-btn:hover{background:rgba(255,255,255,.14);transform:translateY(-1px);}
-.login-toggle{margin:20px 0 0;font-size:12.5px;color:var(--ink-faint);}
+.login-toggle{margin:22px 0 0;font-size:12.5px;color:var(--ink-faint);}
 .login-toggle button{background:none;border:none;color:var(--accent-cyan);font-size:12.5px;font-weight:600;margin-left:4px;}
 
 /* ---- brief "loading home" transition after successful sign-in ---- */
