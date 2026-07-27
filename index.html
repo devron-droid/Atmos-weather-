@@ -52,22 +52,110 @@
           <span class="pill-chip"><svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg> Activity Index</span>
         </div>
 
-        <button type="button" id="getStartedBtn" class="get-started-btn" aria-label="Get Started">
+        <button type="button" id="getStartedBtn" class="get-started-btn moving-animated-btn" aria-label="Get Started">
           <span class="btn-text">Get Started</span>
           <div class="btn-arrow-circle">
             <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
           </div>
         </button>
 
-        <p class="get-started-hint">Tap anywhere to launch</p>
+        <p class="get-started-hint">Click Get Started to authenticate &amp; customize</p>
+      </div>
+    </div>
+
+    <!-- CENTERED AUTHENTICATION LOGIN CARD (LANDSCAPE LAYOUT) -->
+    <div class="login-card landscape-card" id="loginCard" hidden>
+      <button type="button" id="backToGetStartedBtn" class="login-back-btn" title="Back" aria-label="Back to intro">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+      </button>
+
+      <div class="login-card-landscape-grid">
+        <!-- LEFT COLUMN: BRAND & QUICK ACCESS -->
+        <div class="login-side-col left-col">
+          <div class="login-header">
+            <h2 class="login-title">Sign in to Atmos</h2>
+            <p class="login-subtitle">Unlock personalized forecasts &amp; instant welcome updates</p>
+          </div>
+
+          <div class="quick-auth-stack">
+            <!-- GOOGLE SIGN-IN BUTTON (MOVING ANIMATED) -->
+            <button type="button" id="googleSignInBtn" class="google-auth-btn moving-animated-btn">
+              <svg class="google-icon" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+              </svg>
+              <span>Continue with Google</span>
+              <div class="btn-shimmer-beam"></div>
+            </button>
+
+            <div class="guest-auth-wrap">
+              <button type="button" id="guestBtn" class="guest-auth-btn moving-animated-btn">
+                <span>Continue as Guest</span>
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <p class="auth-footnote">
+            Welcome email sent from <strong style="color:var(--accent-cyan);">singhrudransh0000@gmail.com</strong>
+          </p>
+        </div>
+
+        <!-- DIVIDER LINE -->
+        <div class="auth-divider-vertical">
+          <span>OR</span>
+        </div>
+
+        <!-- RIGHT COLUMN: EMAIL AUTH FORM -->
+        <div class="login-side-col right-col">
+          <form id="emailAuthForm" class="email-auth-form">
+            <div class="input-group">
+              <svg viewBox="0 0 24 24" class="input-icon"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+              <input type="email" id="loginEmail" placeholder="Enter your email address" required autocomplete="email" />
+            </div>
+
+            <div class="input-group">
+              <svg viewBox="0 0 24 24" class="input-icon"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              <input type="password" id="loginPassword" placeholder="Enter password" required autocomplete="current-password" />
+              <button type="button" id="togglePassword" class="pass-toggle-btn" title="Toggle Password" aria-label="Toggle Password Visibility">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+
+            <div class="auth-row-actions">
+              <button type="button" id="forgotPasswordBtn" class="forgot-btn">Forgot password?</button>
+              <button type="button" id="loginToggleBtn" class="toggle-mode-btn">Sign up instead</button>
+            </div>
+
+            <p id="loginError" class="login-error-msg" hidden></p>
+
+            <button type="submit" id="loginSubmitBtn" class="login-submit-btn moving-animated-btn">
+              <span id="loginSubmitText">Sign In</span>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+              <div class="btn-shimmer-beam"></div>
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   </div>
 
+  <!-- ATMOSPHERIC CALIBRATION & LOADING OVERLAY -->
   <div class="auth-home-loading" id="authHomeLoading" hidden>
-    <div class="auth-spinner"><svg viewBox="0 0 60 60"><circle cx="30" cy="30" r="25" /></svg></div>
     <div class="auth-loading-brand">ATMOS</div>
-    <p>Atmos by Devron Group • Launching dashboard…</p>
+    
+    <div class="loading-progress-bar">
+      <div id="loadingProgressFill" class="loading-progress-fill"></div>
+    </div>
+
+    <p id="loadingStatusText" class="loading-status-text">Atmos by Devron Group • Launching dashboard…</p>
+
+    <div id="welcomeEmailBadge" class="welcome-email-badge" hidden>
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+      <span>Welcome email dispatched from singhrudransh0000@gmail.com</span>
+    </div>
   </div>
 </div>
 
@@ -134,6 +222,10 @@
         <button id="devProfileBtn" class="dev-profile-topbar-btn holo" title="Developer Profile · Rudransh Singh" aria-label="Developer Profile">
           <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
           <span class="topbar-dev-badge">Developer</span>
+        </button>
+        <button id="seasonToggleBtn" class="season-topbar-btn holo" title="Seasonal Theme & Particle Effect" aria-label="Change Season Theme">
+          <span id="seasonEmoji">🍂</span>
+          <span id="seasonLabel" class="topbar-season-label">Autumn</span>
         </button>
         <button id="shareCardBtn" class="icon-btn holo" title="Generate Shareable Weather Card" aria-label="Generate Shareable Weather Card">
           <svg viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
@@ -332,41 +424,27 @@
           </div>
         </div>
 
-        <!-- FLOATING DEVELOPER PROFILE CARD (MINIMAL & PREMIUM) -->
-        <div class="card dev-profile-card minimal-dev-card tilt" id="devProfileCard">
-          <div class="dev-card-header">
-            <div class="dev-title-wrap">
-              <div class="dev-name-row">
-                <h3 class="dev-name">Rudransh Singh</h3>
-                <span class="dev-online-pill"><span class="dev-online-dot"></span> Available</span>
+        <!-- FLOATING DEVELOPER PROFILE CARD (PURE GLASSMORPHISM - NAME & DESCRIPTION ONLY) -->
+        <div class="card dev-profile-card pure-glass-card tilt" id="devProfileCard">
+          <div class="glass-card-inner">
+            <h3 class="glass-dev-name">Rudransh Singh</h3>
+            <p class="glass-dev-desc">
+              Passionate full-stack developer focused on building atmospheric web applications, ultra-sleek glassmorphism user interfaces, and real-time interactive weather tools with modern craftsmanship and aesthetic attention to detail.
+            </p>
+            <div class="glass-dev-actions">
+              <button id="connectDevBtn" class="glass-connect-btn" aria-label="Connect with Rudransh Singh">Connect</button>
+              <div class="glass-social-row">
+                <a href="https://wa.me/919140783687" target="_blank" rel="noopener" class="glass-social-link wa" title="WhatsApp">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12.012 2c-5.506 0-9.989 4.478-9.99 9.984a9.96 9.96 0 0 0 1.333 4.993L2 22l5.233-1.237a9.96 9.96 0 0 0 4.779 1.217h.004c5.505 0 9.988-4.478 9.989-9.984 0-2.669-1.038-5.176-2.925-7.062A9.925 9.925 0 0 0 12.012 2zm5.82 14.161c-.244.688-1.21 1.285-1.996 1.353-.538.047-1.242.084-3.593-.889-3.003-1.242-4.935-4.298-5.086-4.5-.149-.202-1.219-1.624-1.219-3.098 0-1.474.772-2.198 1.045-2.496.273-.298.595-.373.793-.373.198 0 .397.002.571.011.186.01.434-.071.68.52.247.596.843 2.062.918 2.211.074.149.124.323.025.522-.099.198-.149.323-.297.496-.149.174-.313.388-.446.521-.149.149-.305.311-.131.609.174.298.772 1.272 1.657 2.06 1.139 1.013 2.1 1.327 2.398 1.476.298.149.472.124.646-.074.174-.198.744-.868.942-1.166.198-.298.397-.248.669-.149.273.099 1.735.818 2.033.967.298.149.496.223.57.347.075.124.075.719-.169 1.407z"/></svg>
+                </a>
+                <a href="mailto:singhrudransh0000@gmail.com" target="_blank" rel="noopener" class="glass-social-link email" title="Email">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                </a>
+                <a href="https://github.com/singhrudransh0000" target="_blank" rel="noopener" class="glass-social-link github" title="GitHub">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+                </a>
               </div>
             </div>
-          </div>
-
-          <div class="dev-chips">
-            <span class="dev-chip vibe">⚡ Vibe Coder</span>
-            <span class="dev-chip">🎬 Content Creator</span>
-          </div>
-
-          <div class="dev-description-box">
-            <p>
-              Passionate full-stack developer, vibe coder, and content creator focused on building atmospheric web apps, ultra-sleek glassmorphism user interfaces, and real-time interactive weather tools with modern craftsmanship and aesthetic attention to detail.
-            </p>
-          </div>
-
-          <div class="dev-action-grid">
-            <a href="https://wa.me/919140783687" target="_blank" rel="noopener" class="dev-action-btn wa" title="Chat on WhatsApp">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12.012 2c-5.506 0-9.989 4.478-9.99 9.984a9.96 9.96 0 0 0 1.333 4.993L2 22l5.233-1.237a9.96 9.96 0 0 0 4.779 1.217h.004c5.505 0 9.988-4.478 9.989-9.984 0-2.669-1.038-5.176-2.925-7.062A9.925 9.925 0 0 0 12.012 2zm5.82 14.161c-.244.688-1.21 1.285-1.996 1.353-.538.047-1.242.084-3.593-.889-3.003-1.242-4.935-4.298-5.086-4.5-.149-.202-1.219-1.624-1.219-3.098 0-1.474.772-2.198 1.045-2.496.273-.298.595-.373.793-.373.198 0 .397.002.571.011.186.01.434-.071.68.52.247.596.843 2.062.918 2.211.074.149.124.323.025.522-.099.198-.149.323-.297.496-.149.174-.313.388-.446.521-.149.149-.305.311-.131.609.174.298.772 1.272 1.657 2.06 1.139 1.013 2.1 1.327 2.398 1.476.298.149.472.124.646-.074.174-.198.744-.868.942-1.166.198-.298.397-.248.669-.149.273.099 1.735.818 2.033.967.298.149.496.223.57.347.075.124.075.719-.169 1.407z"/></svg>
-              <span>WhatsApp</span>
-            </a>
-            <a href="mailto:singhrudransh0000@gmail.com" target="_blank" rel="noopener" class="dev-action-btn email" title="Send Email">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-              <span>Email</span>
-            </a>
-            <a href="https://github.com/singhrudransh0000" target="_blank" rel="noopener" class="dev-action-btn github" title="Visit GitHub">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
-              <span>GitHub</span>
-            </a>
           </div>
         </div>
 
@@ -464,6 +542,15 @@
     </div>
     <div class="set-row"><label>Animations &amp; particles</label>
       <label class="switch"><input type="checkbox" id="toggleAnim" checked /><span></span></label>
+    </div>
+    <div class="set-row"><label>Seasonal theme &amp; particles</label>
+      <select id="seasonSelect" class="season-select-dropdown">
+        <option value="auto">Auto (Current Season)</option>
+        <option value="autumn">Autumn 🍂 (Falling Leaves)</option>
+        <option value="winter">Winter ❄️ (Snowflakes)</option>
+        <option value="spring">Spring 🌸 (Blossom Petals)</option>
+        <option value="summer">Summer ☀️ (Golden Sunbeams)</option>
+      </select>
     </div>
     <div class="set-row"><label>3D tilt on cards</label>
       <label class="switch"><input type="checkbox" id="toggleTilt" checked /><span></span></label>
@@ -577,10 +664,9 @@
     <button class="modal-close" data-close aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
   </div>
   <div class="modal-body dev-modal-body">
-    <div class="dev-modal-profile-header">
+    <div class="dev-modal-profile-header clean-glass-header">
       <div class="dev-modal-info">
         <h3>Rudransh Singh</h3>
-        <p class="dev-modal-roles">⚡ Vibe Coder &nbsp;•&nbsp; 🎬 Content Creator</p>
       </div>
     </div>
 

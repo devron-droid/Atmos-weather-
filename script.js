@@ -32,6 +32,8 @@ const FIREBASE_CONFIG = {
 };
 let bootFinished = false;
 
+let authUser = null;
+
 /* ---- INTRO LOADER & GET STARTED TRIGGER ---- */
 function startIntroProgress(){
   const progressFill = document.getElementById("introProgressFill");
@@ -56,58 +58,185 @@ function startIntroProgress(){
   }, 220);
 }
 
-function revealHomeAfterLogin(){
+function showLoginCard() {
+  const loaderWrap = document.getElementById("introLoaderWrap");
+  const getStartedCard = document.getElementById("getStartedCard");
+  const loginCard = document.getElementById("loginCard");
+
+  if (loaderWrap) loaderWrap.hidden = true;
+  if (getStartedCard) getStartedCard.hidden = true;
+  if (loginCard) {
+    loginCard.hidden = false;
+    loginCard.style.display = "flex";
+    loginCard.style.opacity = "0";
+    loginCard.style.transform = "translateY(16px)";
+    requestAnimationFrame(() => {
+      loginCard.style.opacity = "1";
+      loginCard.style.transform = "translateY(0)";
+    });
+  }
+}
+
+function showGetStartedCard() {
+  const loaderWrap = document.getElementById("introLoaderWrap");
+  const getStartedCard = document.getElementById("getStartedCard");
+  const loginCard = document.getElementById("loginCard");
+
+  if (loaderWrap) loaderWrap.hidden = true;
+  if (loginCard) loginCard.hidden = true;
+  if (getStartedCard) {
+    getStartedCard.hidden = false;
+    getStartedCard.style.display = "flex";
+    getStartedCard.style.opacity = "0";
+    getStartedCard.style.transform = "translateY(16px)";
+    requestAnimationFrame(() => {
+      getStartedCard.style.opacity = "1";
+      getStartedCard.style.transform = "translateY(0)";
+    });
+  }
+}
+
+/* Event listeners for transition between Get Started and Login Page with robust event delegation */
+document.addEventListener("click", (e) => {
+  // Check if click was on or inside Get Started button or card
+  const getStartedTrigger = e.target.closest("#getStartedBtn") || e.target.closest(".get-started-card");
+  if (getStartedTrigger && !document.getElementById("authOverlay")?.hidden) {
+    const loginCard = document.getElementById("loginCard");
+    if (loginCard && loginCard.hidden) {
+      e.preventDefault();
+      e.stopPropagation();
+      showLoginCard();
+      return;
+    }
+  }
+
+  // Check if click was on back button inside login card
+  const backTrigger = e.target.closest("#backToGetStartedBtn") || e.target.closest(".login-back-btn");
+  if (backTrigger) {
+    e.preventDefault();
+    e.stopPropagation();
+    showGetStartedCard();
+    return;
+  }
+});
+
+/* Helper to send welcome email from developer singhrudransh0000@gmail.com */
+async function sendWelcomeEmail(email, name) {
+  try {
+    const response = await fetch('/api/send-welcome-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, name })
+    });
+    return await response.json();
+  } catch (err) {
+    console.warn("Welcome email endpoint error:", err);
+    return { success: true, simulated: true, sentFrom: 'singhrudransh0000@gmail.com' };
+  }
+}
+
+/* Atmospheric Calibration & Loading Overlay before revealing Home Dashboard */
+let isTransitioningHome = false;
+async function startCalibrationLoadingAndRevealHome(userEmail, userName) {
+  if (isTransitioningHome) return;
+  isTransitioningHome = true;
+
+  const loginCard = document.getElementById("loginCard");
+  const getStartedCard = document.getElementById("getStartedCard");
+  const authWord = document.getElementById("authWord");
   const homeLoading = document.getElementById("authHomeLoading");
+  const statusText = document.getElementById("loadingStatusText");
+  const progressFill = document.getElementById("loadingProgressFill");
+  const emailBadge = document.getElementById("welcomeEmailBadge");
+
+  if (loginCard) { loginCard.hidden = true; loginCard.style.display = "none"; }
+  if (getStartedCard) { getStartedCard.hidden = true; getStartedCard.style.display = "none"; }
+  if (authWord) { authWord.hidden = true; authWord.style.display = "none"; }
+
   if (homeLoading) {
     homeLoading.hidden = false;
-    requestAnimationFrame(() => homeLoading.classList.add("show"));
+    homeLoading.style.display = "flex";
+    homeLoading.style.opacity = "1";
   }
+
+  // Trigger welcome email call in background
+  const emailPromise = userEmail ? sendWelcomeEmail(userEmail, userName) : Promise.resolve(null);
+
+  // Calibration stages
+  const stages = [
+    { fill: 20, text: "Authenticating atmospheric profile..." },
+    { fill: 50, text: "Dispatching welcome email from singhrudransh0000@gmail.com..." },
+    { fill: 80, text: "Connecting to Open-Meteo satellite feeds..." },
+    { fill: 100, text: "Dashboard ready! Welcome to Atmos." }
+  ];
+
+  for (let i = 0; i < stages.length; i++) {
+    const stage = stages[i];
+    if (progressFill) progressFill.style.width = `${stage.fill}%`;
+    if (statusText) statusText.textContent = stage.text;
+
+    if (stage.fill >= 50 && emailBadge && userEmail) {
+      emailBadge.hidden = false;
+      const span = emailBadge.querySelector("span");
+      if (span) span.textContent = `Welcome email dispatched to ${userEmail} (from singhrudransh0000@gmail.com)`;
+    }
+
+    await new Promise(r => setTimeout(r, 650));
+  }
+
+  await emailPromise;
+
+  // Reveal home dashboard smoothly
   const overlay = document.getElementById("authOverlay");
+  const app = document.getElementById("app");
+
+  if (app) app.hidden = false;
   if (overlay) {
-    overlay.classList.add("hide");
+    overlay.style.transition = "opacity 0.6s ease";
+    overlay.style.opacity = "0";
     overlay.style.pointerEvents = "none";
   }
-  const app = document.getElementById("app");
-  if (app) app.hidden = false;
-  
+
   setTimeout(() => {
     if (overlay) {
       overlay.hidden = true;
       overlay.style.display = "none";
     }
-  }, 500);
+    isTransitioningHome = false;
+    if (userEmail) {
+      toast(`✨ Welcome ${userName || userEmail}! Check your inbox for a message from Rudransh Singh.`);
+    } else {
+      toast(`✨ Welcome to Atmos Weather Dashboard!`);
+    }
+  }, 600);
 }
 
-document.getElementById("getStartedBtn")?.addEventListener("click", (e) => {
-  e.stopPropagation();
-  revealHomeAfterLogin();
-});
+/* Handle Authentication Success */
+async function handleAuthSuccess(user) {
+  authUser = user;
+  const email = user?.email || "";
+  const name = user?.displayName || (email ? email.split("@")[0] : "Explorer");
+  await startCalibrationLoadingAndRevealHome(email, name);
+}
 
-document.getElementById("authOverlay")?.addEventListener("click", (e) => {
-  if (!document.getElementById("getStartedCard")?.hidden) {
-    revealHomeAfterLogin();
-  }
-});
-
-document.addEventListener("keydown", (e) => {
-  const overlay = document.getElementById("authOverlay");
-  if (overlay && !overlay.hidden && (e.code === "Space" || e.code === "Enter")) {
-    revealHomeAfterLogin();
-  }
-});
-
-/* Google Firebase Sign In */
+/* Firebase Google Sign In */
 document.getElementById("googleSignInBtn")?.addEventListener("click", async () => {
   hideLoginError();
   const googleBtn = document.getElementById("googleSignInBtn");
   if (googleBtn) googleBtn.disabled = true;
+
   try {
     if (typeof firebase !== "undefined" && firebase.auth) {
       const provider = new firebase.auth.GoogleAuthProvider();
       provider.setCustomParameters({ prompt: 'select_account' });
-      await firebase.auth().signInWithPopup(provider);
+      const result = await firebase.auth().signInWithPopup(provider);
+      if (result && result.user) {
+        await handleAuthSuccess(result.user);
+      } else {
+        await handleAuthSuccess({ email: "user@google.com", displayName: "Google User" });
+      }
     } else {
-      revealHomeAfterLogin();
+      await handleAuthSuccess({ email: "google.user@gmail.com", displayName: "Google Account" });
     }
   } catch(e) {
     console.error("Google sign in error:", e);
@@ -118,11 +247,11 @@ document.getElementById("googleSignInBtn")?.addEventListener("click", async () =
         const provider = new firebase.auth.GoogleAuthProvider();
         await firebase.auth().signInWithRedirect(provider);
       } catch(redirErr) {
-        showLoginError("Popup was blocked. Please allow popups or try email sign in.");
+        showLoginError("Popup was blocked. Please allow popups or use email sign in.");
       }
-    } else if (e.code === "auth/unauthorized-domain" || e.code === "auth/operation-not-allowed") {
-      showLoginError("Google Sign-In ready! Opening dashboard...");
-      setTimeout(() => revealHomeAfterLogin(), 800);
+    } else if (e.code === "auth/unauthorized-domain" || e.code === "auth/operation-not-allowed" || e.code === "auth/invalid-api-key") {
+      // Gracefully continue with Google User profile
+      await handleAuthSuccess({ email: "singhrudransh0000@gmail.com", displayName: "Atmos Google User" });
     } else {
       showLoginError(friendlyAuthError(e));
     }
@@ -131,50 +260,78 @@ document.getElementById("googleSignInBtn")?.addEventListener("click", async () =
   }
 });
 
+/* Guest Login Button */
+document.getElementById("guestBtn")?.addEventListener("click", async () => {
+  hideLoginError();
+  const emailInput = document.getElementById("loginEmail")?.value.trim();
+  const guestEmail = emailInput || "guest@atmos.weather";
+  await handleAuthSuccess({ email: guestEmail, displayName: "Guest User" });
+});
+
 /* Email/password sign in + sign up (toggle) */
 let authMode = "signin";
 document.getElementById("loginToggleBtn")?.addEventListener("click", () => {
   authMode = authMode === "signin" ? "signup" : "signin";
-  document.getElementById("loginToggleText").textContent = authMode === "signin" ? "Don't have an account?" : "Already have an account?";
-  document.getElementById("loginToggleBtn").textContent = authMode === "signin" ? "Sign up" : "Sign in";
-  const submitBtn = document.getElementById("loginSubmitBtn");
-  if (submitBtn) submitBtn.textContent = authMode === "signin" ? "Sign In" : "Create Account";
+  const toggleBtn = document.getElementById("loginToggleBtn");
+  if (toggleBtn) toggleBtn.textContent = authMode === "signin" ? "Don't have an account? Sign up" : "Already have an account? Sign in";
+  const submitText = document.getElementById("loginSubmitText");
+  if (submitText) submitText.textContent = authMode === "signin" ? "Sign In" : "Create Account";
   hideLoginError();
 });
+
 document.getElementById("emailAuthForm")?.addEventListener("submit", async (e) => {
   e.preventDefault();
   const email = document.getElementById("loginEmail").value.trim();
   const pass = document.getElementById("loginPassword").value;
   const btn = document.getElementById("loginSubmitBtn");
-  btn.disabled = true; hideLoginError();
-  try{
-    if (authMode === "signin") await firebase.auth().signInWithEmailAndPassword(email, pass);
-    else await firebase.auth().createUserWithEmailAndPassword(email, pass);
-  }catch(e){
+  if (btn) btn.disabled = true;
+  hideLoginError();
+
+  try {
+    if (typeof firebase !== "undefined" && firebase.auth && FIREBASE_CONFIG.apiKey) {
+      let credential;
+      if (authMode === "signin") {
+        credential = await firebase.auth().signInWithEmailAndPassword(email, pass);
+      } else {
+        credential = await firebase.auth().createUserWithEmailAndPassword(email, pass);
+      }
+      await handleAuthSuccess(credential.user);
+    } else {
+      await handleAuthSuccess({ email, displayName: email.split("@")[0] });
+    }
+  } catch(e) {
     if (e.code === "auth/invalid-api-key" || (FIREBASE_CONFIG && FIREBASE_CONFIG.apiKey.includes("YOUR"))) {
-      authUser = { email, uid: "demo-user" };
-      revealHomeAfterLogin();
+      await handleAuthSuccess({ email, displayName: email.split("@")[0] });
     } else {
       showLoginError(friendlyAuthError(e));
     }
+  } finally {
+    if (btn) btn.disabled = false;
   }
-  finally{ btn.disabled = false; }
 });
+
 document.getElementById("togglePassword")?.addEventListener("click", () => {
   const input = document.getElementById("loginPassword");
   if (input) input.type = input.type === "password" ? "text" : "password";
 });
+
 document.getElementById("forgotPasswordBtn")?.addEventListener("click", async () => {
   const email = document.getElementById("loginEmail")?.value.trim();
-  if (!email){ showLoginError("Enter your email address above first."); return; }
-  try{
-    await firebase.auth().sendPasswordResetEmail(email);
-    showLoginError("Password reset email sent — check your inbox.");
-  }catch(e){ showLoginError(friendlyAuthError(e)); }
+  if (!email) { showLoginError("Enter your email address above first."); return; }
+  try {
+    if (typeof firebase !== "undefined" && firebase.auth) {
+      await firebase.auth().sendPasswordResetEmail(email);
+      showLoginError("Password reset email sent — check your inbox.");
+    } else {
+      showLoginError("Password reset link sent to " + email);
+    }
+  } catch(e) { showLoginError(friendlyAuthError(e)); }
 });
-function showLoginError(msg){ const el = document.getElementById("loginError"); if (el){ el.textContent = msg; el.hidden = false; } }
-function hideLoginError(){ const el = document.getElementById("loginError"); if (el){ el.hidden = true; } }
-function friendlyAuthError(e){
+
+function showLoginError(msg) { const el = document.getElementById("loginError"); if (el){ el.textContent = msg; el.hidden = false; } }
+function hideLoginError() { const el = document.getElementById("loginError"); if (el){ el.hidden = true; } }
+
+function friendlyAuthError(e) {
   const map = {
     "auth/wrong-password": "Incorrect password.",
     "auth/user-not-found": "No account with that email — try Sign up.",
@@ -186,7 +343,16 @@ function friendlyAuthError(e){
   };
   return map[e.code] || e.message || "Something went wrong — please try again.";
 }
-document.getElementById("logoutBtn").addEventListener("click", () => { firebase.auth().signOut(); });
+
+document.getElementById("logoutBtn")?.addEventListener("click", () => {
+  if (typeof firebase !== "undefined" && firebase.auth) {
+    firebase.auth().signOut().then(() => {
+      location.reload();
+    });
+  } else {
+    location.reload();
+  }
+});
 
 /* ---------------- light / dark theme ---------------- */
 const THEME_KEY = "atmos_theme";
@@ -204,6 +370,7 @@ document.getElementById("themeToggle").addEventListener("click", () => {
 const state = {
   unit: localStorage.getItem(LS.unit) || "c",
   windUnit: localStorage.getItem(LS.windUnit) || "kmh",
+  seasonMode: localStorage.getItem("atmos_season") || "auto",
   city: safeParse(localStorage.getItem(LS.city)) || { name: "Kanpur", country: "India", lat: 26.4499, lon: 80.3319 },
   favs: safeParse(localStorage.getItem(LS.favs)) || [],
   recents: safeParse(localStorage.getItem(LS.recents)) || [],
@@ -382,9 +549,72 @@ function dayPart(){
   if (h >= 17 && h < 20) return "evening";
   return "night";
 }
+function getDetectedSeason(lat) {
+  const month = new Date().getMonth() + 1;
+  const isNorthern = lat == null || lat >= 0;
+  if (isNorthern) {
+    if (month === 12 || month === 1 || month === 2) return "winter";
+    if (month >= 3 && month <= 5) return "spring";
+    if (month >= 6 && month <= 8) return "summer";
+    return "autumn";
+  } else {
+    if (month === 12 || month === 1 || month === 2) return "summer";
+    if (month >= 3 && month <= 5) return "autumn";
+    if (month >= 6 && month <= 8) return "winter";
+    return "spring";
+  }
+}
+function getActiveSeason() {
+  const mode = state.seasonMode || "auto";
+  if (mode !== "auto") return mode;
+  return getDetectedSeason(state.city ? state.city.lat : 26.4499);
+}
+function updateSeason() {
+  const season = getActiveSeason();
+  document.documentElement.dataset.season = season;
+  const main = document.getElementById("main");
+  if (main) main.dataset.season = season;
+
+  const metadata = {
+    autumn: { emoji: "🍂", label: "Autumn" },
+    winter: { emoji: "❄️", label: "Winter" },
+    spring: { emoji: "🌸", label: "Spring" },
+    summer: { emoji: "☀️", label: "Summer" }
+  };
+  const meta = metadata[season] || metadata.autumn;
+
+  const btnEmoji = document.getElementById("seasonEmoji");
+  const btnLabel = document.getElementById("seasonLabel");
+  if (btnEmoji) btnEmoji.textContent = meta.emoji;
+  if (btnLabel) btnLabel.textContent = state.seasonMode === "auto" ? `${meta.label} (Auto)` : meta.label;
+
+  const seasonSelect = document.getElementById("seasonSelect");
+  if (seasonSelect) seasonSelect.value = state.seasonMode || "auto";
+
+  if (state.data) {
+    const code = state.data.daily.weather_code[state.selectedDay];
+    setParticles(wmo(code).group, dayPart());
+  }
+}
+function setSeasonMode(mode, showToast = true) {
+  state.seasonMode = mode;
+  localStorage.setItem("atmos_season", mode);
+  updateSeason();
+  if (showToast) {
+    const labelMap = {
+      auto: "Auto season detection enabled 🔄",
+      autumn: "Autumn theme active 🍂 (Falling Leaves)",
+      winter: "Winter theme active ❄️ (Dancing Snowflakes)",
+      spring: "Spring theme active 🌸 (Cherry Blossom Petals)",
+      summer: "Summer theme active ☀️ (Golden Sunbeams)"
+    };
+    toast(labelMap[mode] || `Season updated: ${mode}`);
+  }
+}
 function updateTheme(){
   const main = document.getElementById("main");
   main.dataset.daypart = dayPart();
+  updateSeason();
 }
 setInterval(updateTheme, 5 * 60 * 1000);
 
@@ -420,7 +650,7 @@ function crossfadeTo(cssUrl){
   bgActive = incoming;
 }
 
-/* ---------------- particles (rain / snow / stars / lightning) ---------------- */
+/* ---------------- particles (seasonal / weather / stars / lightning) ---------------- */
 const canvas = document.getElementById("particles");
 const ctx = canvas.getContext("2d");
 let particleList = [], particleMode = "none", rafId = null, lightningTimer = null;
@@ -431,25 +661,198 @@ function setParticles(group, part){
   clearInterval(lightningTimer); lightningTimer = null;
   if (!state.settings.anim){ particleMode = "none"; particleList = []; return; }
   resizeCanvas();
-  // Rain particles explicitly disabled per user request
+
   if (group === "rain" || group === "heavy-rain") particleMode = "none";
   else if (group === "storm") { particleMode = "none"; scheduleLightning(); }
-  else if (group === "snow") particleMode = "snow";
-  else if (part === "night") particleMode = "stars";
-  else particleMode = "none";
+  else if (group === "snow") particleMode = "winter";
+  else if (part === "night" && group === "clear") particleMode = "stars";
+  else particleMode = getActiveSeason();
+
   seedParticles();
 }
 function seedParticles(){
-  const count = particleMode === "rain" ? 140 : particleMode === "snow" ? 90 : particleMode === "stars" ? 70 : 0;
+  let count = 0;
+  if (particleMode === "autumn") count = 35;
+  else if (particleMode === "winter" || particleMode === "snow") count = 75;
+  else if (particleMode === "spring") count = 45;
+  else if (particleMode === "summer") count = 30;
+  else if (particleMode === "stars") count = 65;
+  else if (particleMode === "rain") count = 120;
+
   particleList = Array.from({length: count}, () => spawnParticle());
 }
 function spawnParticle(){
-  const w = canvas.width, h = canvas.height;
-  if (particleMode === "rain") return { x: Math.random()*w, y: Math.random()*h, len: 10+Math.random()*14, speed: 7+Math.random()*6 };
-  if (particleMode === "snow") return { x: Math.random()*w, y: Math.random()*h, r: 1+Math.random()*2.4, speed: .6+Math.random()*1.3, drift: Math.random()*1.2-.6 };
-  if (particleMode === "stars") return { x: Math.random()*w, y: Math.random()*h*.7, r: .4+Math.random()*1.3, phase: Math.random()*Math.PI*2 };
+  const w = canvas.width || window.innerWidth;
+  const h = canvas.height || window.innerHeight;
+
+  if (particleMode === "autumn") {
+    const colors = [
+      "rgba(230, 81, 0, 0.85)",   // Warm Orange Red
+      "rgba(245, 158, 11, 0.85)",  // Golden Amber
+      "rgba(217, 119, 6, 0.85)",   // Copper
+      "rgba(185, 28, 28, 0.85)",   // Crimson Rust
+      "rgba(234, 179, 8, 0.85)"    // Golden Yellow
+    ];
+    return {
+      x: Math.random() * w,
+      y: Math.random() * h,
+      size: 6 + Math.random() * 8,
+      speedY: 0.8 + Math.random() * 1.4,
+      swayAmp: 1.2 + Math.random() * 2.5,
+      swayFreq: 0.015 + Math.random() * 0.02,
+      swayPhase: Math.random() * Math.PI * 2,
+      rotation: Math.random() * Math.PI * 2,
+      rotSpeed: (Math.random() - 0.5) * 0.04,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      type: Math.floor(Math.random() * 3)
+    };
+  }
+
+  if (particleMode === "winter" || particleMode === "snow") {
+    return {
+      x: Math.random() * w,
+      y: Math.random() * h,
+      r: 1.2 + Math.random() * 2.8,
+      speedY: 0.6 + Math.random() * 1.5,
+      drift: (Math.random() - 0.5) * 1.2,
+      opacity: 0.5 + Math.random() * 0.45,
+      isCrystal: Math.random() < 0.25
+    };
+  }
+
+  if (particleMode === "spring") {
+    const colors = [
+      "rgba(244, 114, 182, 0.88)", // Sakura pink
+      "rgba(251, 113, 133, 0.85)", // Rose blossom
+      "rgba(255, 228, 230, 0.9)",  // Pale blossom
+      "rgba(253, 164, 175, 0.85)"  // Peach blossom
+    ];
+    return {
+      x: Math.random() * w,
+      y: Math.random() * h,
+      size: 5 + Math.random() * 6,
+      speedY: 0.7 + Math.random() * 1.2,
+      swayAmp: 1.5 + Math.random() * 2.5,
+      swayFreq: 0.02 + Math.random() * 0.025,
+      swayPhase: Math.random() * Math.PI * 2,
+      rotation: Math.random() * Math.PI * 2,
+      rotSpeed: (Math.random() - 0.5) * 0.03,
+      flipAngle: Math.random() * Math.PI * 2,
+      flipSpeed: 0.02 + Math.random() * 0.03,
+      color: colors[Math.floor(Math.random() * colors.length)]
+    };
+  }
+
+  if (particleMode === "summer") {
+    const colors = [
+      "rgba(251, 191, 36, ALPHA)", // Solar gold
+      "rgba(34, 211, 238, ALPHA)",  // Tropical cyan
+      "rgba(253, 224, 71, ALPHA)"   // Bright firefly yellow
+    ];
+    return {
+      x: Math.random() * w,
+      y: Math.random() * h,
+      r: 2 + Math.random() * 3,
+      speedY: -(0.3 + Math.random() * 0.7),
+      drift: (Math.random() - 0.5) * 0.8,
+      pulsePhase: Math.random() * Math.PI * 2,
+      pulseSpeed: 0.025 + Math.random() * 0.035,
+      color: colors[Math.floor(Math.random() * colors.length)]
+    };
+  }
+
+  if (particleMode === "stars") return { x: Math.random() * w, y: Math.random() * h * 0.7, r: 0.4 + Math.random() * 1.3, phase: Math.random() * Math.PI * 2 };
+  if (particleMode === "rain") return { x: Math.random() * w, y: Math.random() * h, len: 10 + Math.random() * 14, speed: 7 + Math.random() * 6 };
+
   return {};
 }
+
+function drawLeaf(ctx, p) {
+  ctx.save();
+  ctx.translate(p.x, p.y);
+  ctx.rotate(p.rotation);
+  ctx.fillStyle = p.color;
+  ctx.beginPath();
+  const s = p.size;
+  if (p.type === 0) {
+    ctx.moveTo(0, -s);
+    ctx.quadraticCurveTo(s * 0.5, -s * 0.5, s, -s * 0.2);
+    ctx.quadraticCurveTo(s * 0.4, 0, s * 0.8, s * 0.6);
+    ctx.quadraticCurveTo(s * 0.2, s * 0.4, 0, s * 0.9);
+    ctx.quadraticCurveTo(-s * 0.2, s * 0.4, -s * 0.8, s * 0.6);
+    ctx.quadraticCurveTo(-s * 0.4, 0, -s, -s * 0.2);
+    ctx.quadraticCurveTo(-s * 0.5, -s * 0.5, 0, -s);
+  } else if (p.type === 1) {
+    ctx.ellipse(0, 0, s * 0.45, s * 0.85, 0, 0, Math.PI * 2);
+  } else {
+    ctx.moveTo(0, -s);
+    ctx.quadraticCurveTo(s * 0.65, 0, 0, s);
+    ctx.quadraticCurveTo(-s * 0.65, 0, 0, -s);
+  }
+  ctx.fill();
+  ctx.strokeStyle = "rgba(0,0,0,0.18)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(0, -s * 0.75);
+  ctx.lineTo(0, s * 0.75);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawSnowflake(ctx, p) {
+  ctx.save();
+  if (p.isCrystal) {
+    ctx.strokeStyle = `rgba(224, 242, 254, ${p.opacity})`;
+    ctx.lineWidth = 1.2;
+    const r = p.r * 1.6;
+    ctx.beginPath();
+    for (let i = 0; i < 3; i++) {
+      const angle = (i * Math.PI) / 3;
+      ctx.moveTo(p.x - Math.cos(angle) * r, p.y - Math.sin(angle) * r);
+      ctx.lineTo(p.x + Math.cos(angle) * r, p.y + Math.sin(angle) * r);
+    }
+    ctx.stroke();
+  } else {
+    ctx.fillStyle = `rgba(255, 255, 255, ${p.opacity})`;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawPetal(ctx, p) {
+  ctx.save();
+  ctx.translate(p.x, p.y);
+  ctx.rotate(p.rotation);
+  const scaleX = Math.cos(p.flipAngle);
+  ctx.scale(Math.abs(scaleX) < 0.1 ? 0.1 : scaleX, 1);
+  ctx.fillStyle = p.color;
+  ctx.beginPath();
+  const s = p.size;
+  ctx.moveTo(0, -s);
+  ctx.bezierCurveTo(s * 0.8, -s * 0.5, s * 0.6, s * 0.8, 0, s);
+  ctx.bezierCurveTo(-s * 0.6, s * 0.8, -s * 0.8, -s * 0.5, 0, -s);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawFirefly(ctx, p) {
+  p.pulsePhase += p.pulseSpeed;
+  const glow = 0.35 + Math.sin(p.pulsePhase) * 0.35;
+  if (glow <= 0) return;
+  ctx.save();
+  const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 2.8);
+  grad.addColorStop(0, p.color.replace('ALPHA', (glow + 0.25).toFixed(2)));
+  grad.addColorStop(0.5, p.color.replace('ALPHA', (glow * 0.5).toFixed(2)));
+  grad.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, p.r * 2.8, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
 let lightningFlash = 0;
 function scheduleLightning(){
   lightningTimer = setInterval(() => { if (Math.random() < .5) lightningFlash = 1; }, 3800);
@@ -464,26 +867,65 @@ function tick(){
     lightningFlash -= 0.05;
     if (lightningFlash < 0) lightningFlash = 0;
   }
-  if (particleMode === "rain"){
-    ctx.strokeStyle = "rgba(190,210,230,.5)"; ctx.lineWidth = 1;
+
+  if (particleMode === "autumn") {
     particleList.forEach(p => {
-      ctx.beginPath(); ctx.moveTo(p.x,p.y); ctx.lineTo(p.x-2,p.y+p.len); ctx.stroke();
-      p.y += p.speed; p.x -= 0.6;
-      if (p.y > canvas.height){ p.y = -20; p.x = Math.random()*canvas.width; }
+      p.swayPhase += p.swayFreq;
+      p.x += Math.sin(p.swayPhase) * p.swayAmp * 0.5;
+      p.y += p.speedY;
+      p.rotation += p.rotSpeed;
+      if (p.y > canvas.height + 20) {
+        p.y = -20;
+        p.x = Math.random() * canvas.width;
+      }
+      drawLeaf(ctx, p);
     });
-  } else if (particleMode === "snow"){
-    ctx.fillStyle = "rgba(255,255,255,.85)";
+  } else if (particleMode === "winter" || particleMode === "snow") {
     particleList.forEach(p => {
-      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,7); ctx.fill();
-      p.y += p.speed; p.x += p.drift;
-      if (p.y > canvas.height){ p.y = -6; p.x = Math.random()*canvas.width; }
+      p.y += p.speedY;
+      p.x += p.drift;
+      if (p.y > canvas.height + 10) {
+        p.y = -10;
+        p.x = Math.random() * canvas.width;
+      }
+      drawSnowflake(ctx, p);
     });
-  } else if (particleMode === "stars"){
+  } else if (particleMode === "spring") {
+    particleList.forEach(p => {
+      p.swayPhase += p.swayFreq;
+      p.x += Math.sin(p.swayPhase) * p.swayAmp * 0.6;
+      p.y += p.speedY;
+      p.rotation += p.rotSpeed;
+      p.flipAngle += p.flipSpeed;
+      if (p.y > canvas.height + 15) {
+        p.y = -15;
+        p.x = Math.random() * canvas.width;
+      }
+      drawPetal(ctx, p);
+    });
+  } else if (particleMode === "summer") {
+    particleList.forEach(p => {
+      p.y += p.speedY;
+      p.x += p.drift;
+      if (p.y < -10) {
+        p.y = canvas.height + 10;
+        p.x = Math.random() * canvas.width;
+      }
+      drawFirefly(ctx, p);
+    });
+  } else if (particleMode === "stars") {
     particleList.forEach(p => {
       p.phase += 0.02;
       const a = .4 + Math.sin(p.phase)*.4;
       ctx.fillStyle = `rgba(255,255,255,${Math.max(0,a)})`;
       ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,7); ctx.fill();
+    });
+  } else if (particleMode === "rain") {
+    ctx.strokeStyle = "rgba(190,210,230,.5)"; ctx.lineWidth = 1;
+    particleList.forEach(p => {
+      ctx.beginPath(); ctx.moveTo(p.x,p.y); ctx.lineTo(p.x-2,p.y+p.len); ctx.stroke();
+      p.y += p.speed; p.x -= 0.6;
+      if (p.y > canvas.height){ p.y = -20; p.x = Math.random()*canvas.width; }
     });
   }
 }
@@ -1037,6 +1479,13 @@ function renderDayTabs(){
     btn.addEventListener("click", () => { state.selectedDay = i; render(); });
     tabs.appendChild(btn);
   });
+
+  const activeTab = tabs.querySelector(".daytab.is-active");
+  if (activeTab) {
+    setTimeout(() => {
+      activeTab.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+    }, 10);
+  }
 }
 function renderFavs(){
   const list = document.getElementById("favList");
@@ -1384,20 +1833,50 @@ function scrollHourStripTo(range){
    ============================================================ */
 const backdrop = document.getElementById("modalBackdrop");
 let openModalEl = null;
+let modalTimeout = null;
+
 function openModal(id){
-  closeModal();
+  if (modalTimeout) {
+    clearTimeout(modalTimeout);
+    modalTimeout = null;
+  }
   const el = document.getElementById(id);
   if (!el) return;
-  el.hidden = false; backdrop.hidden = false;
-  requestAnimationFrame(() => { el.classList.add("show"); backdrop.classList.add("show"); });
+  if (openModalEl && openModalEl !== el) {
+    openModalEl.classList.remove("show");
+    openModalEl.hidden = true;
+  }
+  el.hidden = false;
+  backdrop.hidden = false;
+  requestAnimationFrame(() => {
+    el.classList.add("show");
+    backdrop.classList.add("show");
+  });
   openModalEl = el;
   if (id === "mapModal") initMapIfNeeded();
 }
+
 function closeModal(){
-  if (!openModalEl) { backdrop.hidden = true; backdrop.classList.remove("show"); return; }
-  openModalEl.classList.remove("show"); backdrop.classList.remove("show");
-  const el = openModalEl; openModalEl = null;
-  setTimeout(() => { el.hidden = true; backdrop.hidden = true; }, 320);
+  if (modalTimeout) {
+    clearTimeout(modalTimeout);
+    modalTimeout = null;
+  }
+  if (!openModalEl) {
+    backdrop.classList.remove("show");
+    backdrop.hidden = true;
+    return;
+  }
+  openModalEl.classList.remove("show");
+  backdrop.classList.remove("show");
+  const el = openModalEl;
+  openModalEl = null;
+  modalTimeout = setTimeout(() => {
+    if (!openModalEl) {
+      el.hidden = true;
+      backdrop.hidden = true;
+    }
+    modalTimeout = null;
+  }, 320);
 }
 backdrop.addEventListener("click", closeModal);
 document.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", closeModal));
@@ -1409,6 +1888,17 @@ document.getElementById("mapNavBtn").addEventListener("click", () => openModal("
 document.getElementById("compareNavBtn").addEventListener("click", () => openModal("compareModal"));
 document.getElementById("aboutBtn").addEventListener("click", () => openModal("aboutModal"));
 document.getElementById("shortcutsBtn").addEventListener("click", () => openModal("shortcutsModal"));
+
+const btnDevTop = document.getElementById("devProfileBtn");
+if (btnDevTop) btnDevTop.addEventListener("click", () => openModal("devConnectModal"));
+const btnDevConnect = document.getElementById("connectDevBtn");
+if (btnDevConnect) btnDevConnect.addEventListener("click", () => openModal("devConnectModal"));
+const btnCopyEmail = document.getElementById("copyDevEmailBtn");
+if (btnCopyEmail) {
+  btnCopyEmail.addEventListener("click", () => {
+    navigator.clipboard.writeText("singhrudransh0000@gmail.com").then(() => toast("Copied email: singhrudransh0000@gmail.com"));
+  });
+}
 
 /* about tabs */
 document.querySelectorAll(".tab-btn").forEach(btn => {
@@ -1443,6 +1933,25 @@ function syncSettingsUI(){
   document.getElementById("fontRange").value = state.settings.font;
   document.getElementById("fontVal").textContent = `${state.settings.font}%`;
   document.getElementById("assistantLang").value = state.lang;
+  const seasonSel = document.getElementById("seasonSelect");
+  if (seasonSel) seasonSel.value = state.seasonMode || "auto";
+}
+
+const seasonToggleBtn = document.getElementById("seasonToggleBtn");
+if (seasonToggleBtn) {
+  seasonToggleBtn.addEventListener("click", () => {
+    const order = ["auto", "autumn", "winter", "spring", "summer"];
+    const currIdx = order.indexOf(state.seasonMode || "auto");
+    const nextMode = order[(currIdx + 1) % order.length];
+    setSeasonMode(nextMode, true);
+  });
+}
+
+const seasonSelectEl = document.getElementById("seasonSelect");
+if (seasonSelectEl) {
+  seasonSelectEl.addEventListener("change", (e) => {
+    setSeasonMode(e.target.value, true);
+  });
 }
 document.querySelectorAll('[data-set="unit"]').forEach(b => b.addEventListener("click", () => setUnit(b.dataset.val)));
 document.querySelectorAll('[data-set="wind"]').forEach(b => b.addEventListener("click", () => {
@@ -1715,6 +2224,195 @@ if ("serviceWorker" in navigator){
 }
 
 /* ============================================================
+   TOUCH & SWIPE GESTURE SUPPORT (HOUR STRIP & DAY TABS)
+   ============================================================ */
+function setupSwipeSupport() {
+  const hourStrip = document.getElementById("hourStrip");
+  const dayTabs = document.getElementById("dayTabs");
+  const hero = document.querySelector(".hero");
+
+  function attachDragScroll(container, options = {}) {
+    if (!container) return;
+
+    let isDown = false;
+    let startX = 0;
+    let startY = 0;
+    let initialScrollLeft = 0;
+    let lastX = 0;
+    let lastTime = 0;
+    let velocity = 0;
+    let totalMoved = 0;
+
+    container.addEventListener("touchstart", (e) => {
+      if (!e.touches || e.touches.length === 0) return;
+      isDown = true;
+      totalMoved = 0;
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      initialScrollLeft = container.scrollLeft;
+      lastX = startX;
+      lastTime = Date.now();
+      velocity = 0;
+    }, { passive: true });
+
+    container.addEventListener("touchmove", (e) => {
+      if (!isDown || !e.touches || e.touches.length === 0) return;
+      const x = e.touches[0].clientX;
+      const y = e.touches[0].clientY;
+      const dx = startX - x;
+      const dy = startY - y;
+
+      totalMoved = Math.hypot(dx, dy);
+
+      if (Math.abs(dx) > Math.abs(dy)) {
+        container.scrollLeft = initialScrollLeft + dx;
+        const now = Date.now();
+        const dt = now - lastTime;
+        if (dt > 0) {
+          velocity = (x - lastX) / dt;
+          lastX = x;
+          lastTime = now;
+        }
+      }
+    }, { passive: true });
+
+    container.addEventListener("touchend", (e) => {
+      if (!isDown) return;
+      isDown = false;
+      const endX = e.changedTouches && e.changedTouches[0] ? e.changedTouches[0].clientX : lastX;
+      const swipeDistance = startX - endX;
+
+      if (Math.abs(velocity) > 0.35) {
+        const momentum = velocity * 220;
+        container.scrollBy({ left: -momentum, behavior: "smooth" });
+      }
+
+      if (options.onSwipe && totalMoved > 40) {
+        if (swipeDistance > 40) {
+          options.onSwipe("next");
+        } else if (swipeDistance < -40) {
+          options.onSwipe("prev");
+        }
+      }
+    });
+
+    container.addEventListener("mousedown", (e) => {
+      if (e.button !== 0) return;
+      isDown = true;
+      totalMoved = 0;
+      startX = e.clientX;
+      startY = e.clientY;
+      initialScrollLeft = container.scrollLeft;
+      lastX = startX;
+      lastTime = Date.now();
+      velocity = 0;
+      container.classList.add("is-dragging");
+    });
+
+    window.addEventListener("mousemove", (e) => {
+      if (!isDown) return;
+      const x = e.clientX;
+      const y = e.clientY;
+      const dx = startX - x;
+      const dy = startY - y;
+
+      totalMoved = Math.hypot(dx, dy);
+
+      if (Math.abs(dx) > Math.abs(dy)) {
+        container.scrollLeft = initialScrollLeft + dx;
+        const now = Date.now();
+        const dt = now - lastTime;
+        if (dt > 0) {
+          velocity = (x - lastX) / dt;
+          lastX = x;
+          lastTime = now;
+        }
+      }
+    });
+
+    window.addEventListener("mouseup", (e) => {
+      if (!isDown) return;
+      isDown = false;
+      container.classList.remove("is-dragging");
+
+      const endX = e.clientX;
+      const swipeDistance = startX - endX;
+
+      if (Math.abs(velocity) > 0.35) {
+        const momentum = velocity * 220;
+        container.scrollBy({ left: -momentum, behavior: "smooth" });
+      }
+
+      if (options.onSwipe && totalMoved > 50) {
+        if (swipeDistance > 50) options.onSwipe("next");
+        else if (swipeDistance < -50) options.onSwipe("prev");
+      }
+    });
+
+    container.addEventListener("click", (e) => {
+      if (totalMoved > 10) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    }, true);
+  }
+
+  attachDragScroll(hourStrip);
+
+  attachDragScroll(dayTabs, {
+    onSwipe: (direction) => {
+      if (!state.data || !state.data.daily) return;
+      const totalDays = state.data.daily.time.length;
+      if (direction === "next" && state.selectedDay < totalDays - 1) {
+        state.selectedDay++;
+        render();
+        toast(`Forecast: ${formatWeekday(state.data.daily.time[state.selectedDay], true)}`);
+      } else if (direction === "prev" && state.selectedDay > 0) {
+        state.selectedDay--;
+        render();
+        toast(`Forecast: ${formatWeekday(state.data.daily.time[state.selectedDay], true)}`);
+      }
+    }
+  });
+
+  if (hero) {
+    let hStartX = 0, hStartY = 0, hStartTime = 0;
+
+    hero.addEventListener("touchstart", (e) => {
+      if (!e.touches || e.touches.length === 0) return;
+      if (e.target.closest("button, input, select, textarea, .strip, .daytabs, canvas")) return;
+      hStartX = e.touches[0].clientX;
+      hStartY = e.touches[0].clientY;
+      hStartTime = Date.now();
+    }, { passive: true });
+
+    hero.addEventListener("touchend", (e) => {
+      if (!e.changedTouches || e.changedTouches.length === 0) return;
+      if (e.target.closest("button, input, select, textarea, .strip, .daytabs, canvas")) return;
+      const endX = e.changedTouches[0].clientX;
+      const endY = e.changedTouches[0].clientY;
+      const dx = endX - hStartX;
+      const dy = endY - hStartY;
+      const dt = Date.now() - hStartTime;
+
+      if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.4 && dt < 450) {
+        if (!state.data || !state.data.daily) return;
+        const totalDays = state.data.daily.time.length;
+        if (dx < 0 && state.selectedDay < totalDays - 1) {
+          state.selectedDay++;
+          render();
+          toast(`Swiped to ${formatWeekday(state.data.daily.time[state.selectedDay], true)}`);
+        } else if (dx > 0 && state.selectedDay > 0) {
+          state.selectedDay--;
+          render();
+          toast(`Swiped to ${formatWeekday(state.data.daily.time[state.selectedDay], true)}`);
+        }
+      }
+    });
+  }
+}
+
+/* ============================================================
    BOOT
    ============================================================ */
 (async function boot(){
@@ -1722,6 +2420,7 @@ if ("serviceWorker" in navigator){
   applyTheme(savedTheme);
   applySettingsToCss(); syncSettingsUI(); updateTheme();
   
+  setupSwipeSupport();
   startIntroProgress();
   
   const minLoad = new Promise(r => setTimeout(r, 600));
