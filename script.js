@@ -24,7 +24,7 @@ const LS = {
    ============================================================ */
 const firebaseConfig = {
   apiKey: "AIzaSyD2C7DekJTHdYSe22CXxkkLwodw2dM6aGY",
-  authDomain: "gen-lang-client-0312716408.firebaseapp.com",
+  authDomain: "atmos-weather-inky.vercel.app",
   projectId: "gen-lang-client-0312716408",
   storageBucket: "gen-lang-client-0312716408.firebasestorage.app",
   messagingSenderId: "713603833500",
