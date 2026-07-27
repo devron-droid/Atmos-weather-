@@ -22,13 +22,13 @@ const LS = {
    FIREBASE AUTH — fill these in from your Firebase project
    (console.firebase.google.com → Project settings → your web app)
    ============================================================ */
-const FIREBASE_CONFIG = {
+const firebaseConfig = {
   apiKey: "AIzaSyD2C7DekJTHdYSe22CXxkkLwodw2dM6aGY",
   authDomain: "gen-lang-client-0312716408.firebaseapp.com",
   projectId: "gen-lang-client-0312716408",
-  appId: "1:713603833500:web:325ce5543eaa6b3c331759",
   storageBucket: "gen-lang-client-0312716408.firebasestorage.app",
   messagingSenderId: "713603833500",
+  appId: "1:713603833500:web:325ce5543eaa6b3c331759"
 };
 let bootFinished = false;
 
