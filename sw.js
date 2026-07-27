@@ -45,8 +45,10 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("fetch", (event) => {
+  if (event.request.method !== "GET") return; // never intercept POST/PUT/DELETE
   const url = new URL(event.request.url);
-  if (url.origin !== self.location.origin) return; // never intercept API/CDN calls
+  if (url.origin !== self.location.origin) return; // never intercept external API/CDN calls
+  if (url.pathname.startsWith("/api/")) return; // never intercept backend API endpoints
 
   event.respondWith(
     fetch(event.request)

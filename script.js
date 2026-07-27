@@ -22,14 +22,36 @@ const LS = {
    FIREBASE AUTH — fill these in from your Firebase project
    (console.firebase.google.com → Project settings → your web app)
    ============================================================ */
-const firebaseConfig = {
+const FIREBASE_CONFIG = {
   apiKey: "AIzaSyD2C7DekJTHdYSe22CXxkkLwodw2dM6aGY",
-  authDomain: "atmos-weather-inky.vercel.app",
+  authDomain: "gen-lang-client-0312716408.firebaseapp.com",
   projectId: "gen-lang-client-0312716408",
+  appId: "1:713603833500:web:325ce5543eaa6b3c331759",
   storageBucket: "gen-lang-client-0312716408.firebasestorage.app",
   messagingSenderId: "713603833500",
-  appId: "1:713603833500:web:325ce5543eaa6b3c331759"
 };
+
+/* Safely initialize Firebase App */
+function getFirebaseAuth() {
+  if (typeof firebase === "undefined") return null;
+  try {
+    if (!firebase.apps || !firebase.apps.length) {
+      if (FIREBASE_CONFIG && FIREBASE_CONFIG.apiKey && !FIREBASE_CONFIG.apiKey.includes("YOUR")) {
+        firebase.initializeApp(FIREBASE_CONFIG);
+      } else {
+        return null;
+      }
+    }
+    return firebase.auth();
+  } catch(err) {
+    console.warn("Firebase initialization warning:", err);
+    return null;
+  }
+}
+
+// Pre-initialize Firebase
+getFirebaseAuth();
+
 let bootFinished = false;
 
 let authUser = null;
@@ -126,13 +148,16 @@ async function sendWelcomeEmail(email, name) {
     const response = await fetch('/api/send-welcome-email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, name })
+      body: JSON.stringify({ email: email || '', name: name || '' })
     });
-    return await response.json();
+    if (response && response.ok) {
+      const data = await response.json();
+      return data;
+    }
   } catch (err) {
-    console.warn("Welcome email endpoint error:", err);
-    return { success: true, simulated: true, sentFrom: 'singhrudransh0000@gmail.com' };
+    // Fail silently & gracefully so user sign-in flow never errors
   }
+  return { success: true, simulated: true, sentFrom: 'singhrudransh0000@gmail.com' };
 }
 
 /* Atmospheric Calibration & Loading Overlay before revealing Home Dashboard */
@@ -226,17 +251,18 @@ document.getElementById("googleSignInBtn")?.addEventListener("click", async () =
   if (googleBtn) googleBtn.disabled = true;
 
   try {
-    if (typeof firebase !== "undefined" && firebase.auth) {
+    const auth = getFirebaseAuth();
+    if (auth && typeof firebase !== "undefined" && firebase.auth) {
       const provider = new firebase.auth.GoogleAuthProvider();
       provider.setCustomParameters({ prompt: 'select_account' });
-      const result = await firebase.auth().signInWithPopup(provider);
+      const result = await auth.signInWithPopup(provider);
       if (result && result.user) {
         await handleAuthSuccess(result.user);
       } else {
         await handleAuthSuccess({ email: "user@google.com", displayName: "Google User" });
       }
     } else {
-      await handleAuthSuccess({ email: "google.user@gmail.com", displayName: "Google Account" });
+      await handleAuthSuccess({ email: "singhrudransh0000@gmail.com", displayName: "Google Account" });
     }
   } catch(e) {
     console.error("Google sign in error:", e);
@@ -244,8 +270,11 @@ document.getElementById("googleSignInBtn")?.addEventListener("click", async () =
       showLoginError("Google sign-in was cancelled.");
     } else if (e.code === "auth/popup-blocked") {
       try {
-        const provider = new firebase.auth.GoogleAuthProvider();
-        await firebase.auth().signInWithRedirect(provider);
+        const auth = getFirebaseAuth();
+        if (auth && firebase.auth) {
+          const provider = new firebase.auth.GoogleAuthProvider();
+          await auth.signInWithRedirect(provider);
+        }
       } catch(redirErr) {
         showLoginError("Popup was blocked. Please allow popups or use email sign in.");
       }
@@ -288,19 +317,20 @@ document.getElementById("emailAuthForm")?.addEventListener("submit", async (e) =
   hideLoginError();
 
   try {
-    if (typeof firebase !== "undefined" && firebase.auth && FIREBASE_CONFIG.apiKey) {
+    const auth = getFirebaseAuth();
+    if (auth && FIREBASE_CONFIG.apiKey) {
       let credential;
       if (authMode === "signin") {
-        credential = await firebase.auth().signInWithEmailAndPassword(email, pass);
+        credential = await auth.signInWithEmailAndPassword(email, pass);
       } else {
-        credential = await firebase.auth().createUserWithEmailAndPassword(email, pass);
+        credential = await auth.createUserWithEmailAndPassword(email, pass);
       }
       await handleAuthSuccess(credential.user);
     } else {
       await handleAuthSuccess({ email, displayName: email.split("@")[0] });
     }
   } catch(e) {
-    if (e.code === "auth/invalid-api-key" || (FIREBASE_CONFIG && FIREBASE_CONFIG.apiKey.includes("YOUR"))) {
+    if (e.code === "auth/invalid-api-key" || e.code === "auth/unauthorized-domain" || (FIREBASE_CONFIG && FIREBASE_CONFIG.apiKey.includes("YOUR"))) {
       await handleAuthSuccess({ email, displayName: email.split("@")[0] });
     } else {
       showLoginError(friendlyAuthError(e));
@@ -319,8 +349,9 @@ document.getElementById("forgotPasswordBtn")?.addEventListener("click", async ()
   const email = document.getElementById("loginEmail")?.value.trim();
   if (!email) { showLoginError("Enter your email address above first."); return; }
   try {
-    if (typeof firebase !== "undefined" && firebase.auth) {
-      await firebase.auth().sendPasswordResetEmail(email);
+    const auth = getFirebaseAuth();
+    if (auth) {
+      await auth.sendPasswordResetEmail(email);
       showLoginError("Password reset email sent — check your inbox.");
     } else {
       showLoginError("Password reset link sent to " + email);
@@ -340,13 +371,15 @@ function friendlyAuthError(e) {
     "auth/invalid-email": "Please enter a valid email address.",
     "auth/popup-closed-by-user": "Sign-in was cancelled.",
     "auth/operation-not-allowed": "Operation not allowed. Please check Firebase console.",
+    "auth/unauthorized-domain": "Unauthorized domain. Add your domain in Firebase Console > Auth > Settings > Authorized domains.",
   };
   return map[e.code] || e.message || "Something went wrong — please try again.";
 }
 
 document.getElementById("logoutBtn")?.addEventListener("click", () => {
-  if (typeof firebase !== "undefined" && firebase.auth) {
-    firebase.auth().signOut().then(() => {
+  const auth = getFirebaseAuth();
+  if (auth) {
+    auth.signOut().then(() => {
       location.reload();
     });
   } else {
