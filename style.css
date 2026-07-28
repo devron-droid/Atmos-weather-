@@ -132,24 +132,72 @@ kbd{
   border-radius:100px;transition:width .22s ease-out;
 }
 
-/* CENTERED GET STARTED HERO CARD (COMPACT & PREMIUM) */
+/* CENTERED GET STARTED HERO CARD (LANDSCAPE LAYOUT) */
 .get-started-card{
   position:relative;z-index:20;pointer-events:auto !important;
-  width:min(340px, 88vw);
-  background:rgba(8,12,18,.82);backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);
+  width:min(680px, 92vw);
+  background:rgba(8,12,18,.82);backdrop-filter:blur(32px) saturate(180%);-webkit-backdrop-filter:blur(32px) saturate(180%);
   border:1px solid rgba(255,255,255,.18);border-radius:24px;
-  padding:22px 20px;text-align:center;
-  box-shadow:0 20px 50px rgba(0,0,0,.5), 0 0 30px rgba(111,227,232,.1);
+  padding:26px 30px;text-align:left;
+  box-shadow:0 24px 64px rgba(0,0,0,.55), 0 0 40px rgba(111,227,232,.12);
   animation:cardIn .5s var(--ease) forwards;
-  cursor:pointer;
+  box-sizing:border-box;
 }
 .get-started-card[hidden] {
   display: none !important;
 }
-.get-started-inner{display:flex;flex-direction:column;align-items:center;gap:10px;pointer-events:auto;}
-.get-started-logo{width:42px;height:42px;border-radius:10px;object-fit:contain;background:#000;border:1px solid rgba(255,255,255,.16);box-shadow:0 4px 16px rgba(0,0,0,.4);}
-.get-started-brand-title{font-family:'Bodoni Moda', 'Playfair Display', Georgia, serif;font-style:italic;font-size:22px;font-weight:600;color:#fff;letter-spacing:-.01em;margin-top:-2px;}
-.get-started-devron{font-size:10px;color:var(--accent-cyan);font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-top:-6px;margin-bottom:2px;}
+
+.get-started-landscape-grid {
+  display: grid;
+  grid-template-columns: 1.2fr auto 1fr;
+  gap: 22px;
+  align-items: center;
+}
+
+.get-started-left-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.get-started-brand-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.get-started-logo{width:46px;height:46px;border-radius:12px;object-fit:contain;background:#000;border:1px solid rgba(255,255,255,.18);box-shadow:0 4px 18px rgba(0,0,0,.45);}
+.get-started-brand-title{font-family:'Bodoni Moda', 'Playfair Display', Georgia, serif;font-style:italic;font-size:22px;font-weight:600;color:#fff;letter-spacing:-.01em;}
+.get-started-devron{font-size:10px;color:var(--accent-cyan);font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-top:-2px;}
+
+.get-started-desc {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.8);
+  line-height: 1.55;
+  margin: 0;
+}
+
+.get-started-right-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+
+@media (max-width: 640px) {
+  .get-started-card {
+    width: min(380px, 92vw);
+    padding: 20px 18px;
+  }
+  .get-started-landscape-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  .get-started-divider {
+    display: none;
+  }
+}
 
 .feature-pills{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;}
 .pill-chip{
