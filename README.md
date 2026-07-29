@@ -1,108 +1,115 @@
-# Atmos v2 — a premium, frontend-only weather dashboard
+# Atmos Weather v3 — Real-Time Forecasts, AI Insights & Glassmorphic Dashboard
 
-Still no backend, no build step, no API key. Everything below runs
-directly in the visitor's browser.
+**Atmos Weather by Devron Group** is a next-generation, interactive web application delivering high-precision weather forecasts, live precipitation radar maps, outdoor activity indices, Gemini AI recommendations, and seamless account persistence—wrapped in a high-contrast glassmorphic design.
 
-## What's new in this version
-- **Dynamic weather + time-of-day backgrounds** — crossfades based on
-  condition (clear/cloudy/rain/storm/snow/fog/etc.) and day/night.
-  Drop your own photos into `assets/weather/` (see the README in
-  that folder for exact filenames) — until you do, it gracefully
-  falls back to your original background photo with an animated tint.
-- **Canvas particles** — rain, snow, twinkling stars at night, and
-  lightning flashes during storms. Toggle off in Settings.
-- **3D tilt** on cards (mouse-follow), holographic glowing borders,
-  glass panels with adjustable blur.
-- **Proper modal system** — Settings, Air Quality, Weather Map,
-  Compare Cities, About/Changelog, Keyboard Shortcuts — no browser
-  alert boxes anywhere.
-- **AI Weather Assistant** (bottom-right button, or press `A`) — rule-based
-  today, answering questions about clothing, travel, workouts, running,
-  cycling, farming, hydration, UV, and rain, in English or Hindi. Speaks
-  replies aloud (Web Speech API) and accepts voice questions where the
-  browser supports it (Chrome/Edge). See the big comment above
-  `getAIResponse()` in `script.js` for exactly how to wire in a real
-  API (OpenAI/Gemini/Claude) later.
-- **Live weather map** — Leaflet + OpenStreetMap + a free live
-  precipitation radar layer (RainViewer), opened lazily so it doesn't
-  slow down the main dashboard.
-- **Full air quality panel** — AQI, PM2.5, PM10, pressure, wind
-  direction, UV, feels-like, all colour-coded.
-- **Weather alerts** — auto-generated banner chips for storms, heavy
-  rain, fog, snow, strong wind, heatwave, high UV.
-- **Animated timeline** (Now / +1h / +3h / +6h / +12h / Tomorrow / 7 Days).
-- **Sunrise/sunset progress ring** + a real moon-phase indicator
-  (calculated locally, no API needed).
-- **Recent searches**, alongside your existing saved cities.
-- **Settings panel** — units, wind units, assistant language,
-  animations on/off, tilt on/off, background overlay intensity, glass
-  blur, font size — all saved to `localStorage`.
-- **Keyboard shortcuts**: `/` search, `U` units, `M` map, `A` assistant,
-  `S` settings, `?` shortcuts list, `Esc` closes anything open.
-- **PWA-ready** — `manifest.json` + `sw.js` let people "Add to Home
-  Screen" and keep the app shell (not live data) available offline.
-- Accessibility: `aria-label`s throughout, `prefers-reduced-motion`
-  fully respected (disables particles/animations), focus-manageable
-  modals, keyboard-operable everywhere.
+---
 
-## Honest list of what's simplified (by design, not by accident)
-- **AI assistant is rule-based**, not a real LLM — wiring in a real one
-  from a pure static site means shipping your API key to every visitor's
-  browser, which isn't safe for a public deploy. The code is structured
-  so swapping in a real API later is a one-function change (see the
-  comment block in `script.js`), ideally behind a small serverless
-  proxy so the key stays private.
-- **Weather map** shows a live precipitation radar layer (free, no key).
-  Temperature/wind/cloud *map overlays* generally require a paid tile
-  provider (e.g. OpenWeatherMap with a key) — happy to wire that in if
-  you get a free-tier key later.
-- **"Rotating 3D Earth" / full 3D globe** was scoped down to the 3D
-  card-tilt + holographic effects — a real WebGL globe (three.js) is a
-  reasonable next addition if you want it, it's just a substantial
-  separate feature.
-- **PDF export / share-as-image / screenshot button** aren't in yet —
-  next on the list if you want them; they're addable without a backend
-  (jsPDF + canvas), just kept out of this pass to avoid bloating an
-  already large update.
-- Historical weather isn't wired in — Open-Meteo does have a free
-  historical/archive API, so it's addable later.
+## 🌟 What's New in Version 3.0
 
-## Data & library sources (all free, no key required)
-- `geocoding-api.open-meteo.com` — city search
-- `api.open-meteo.com` — forecast (current + hourly + daily)
-- `air-quality-api.open-meteo.com` — AQI, PM2.5, PM10
-- `api.bigdatacloud.net` — reverse geocoding for "use my location"
-- `tile.openstreetmap.org` + `tilecache.rainviewer.com` — map + radar
-- `cdnjs.cloudflare.com` — Leaflet.js (map library) and Google Fonts
+### 🔐 Persistent User Session & Profile Management
+- **Automatic Login Persistence**: Uses local state caching alongside Firebase Auth to maintain user sessions across browser reloads. You stay logged in automatically without repetitive auth prompts.
+- **Topbar User Profile Widget**: Real-time display of user display name and custom avatar in the main navigation bar.
+- **Account Profile Modal**: Detailed account drawer showing Google OAuth details, sign-in method, email address, active session status, and a one-click **Sign Out & Clear Session** trigger.
 
-## Run locally
+### 🖼️ Landscape Intro & Authentication Flow
+- **Landscape Get Started Hero**: Re-architected intro card featuring a clean, dual-column landscape glass layout (`max-width: 680px`) designed to showcase rich dynamic background wallpapers without screen obstruction.
+- **Sleek Login View**: Cleaned authentication modal eliminating clutter and non-functional navigation elements.
+- **Automatic Welcome Dispatch**: Integrated serverless API route (`/api/send-welcome-email`) to dispatch personalized confirmation messages upon sign in.
+
+### ✨ Atmospheric Loading & Smooth Transitions
+- **Glassmorphic Calibration Screen**: High-blur centered glass card (`backdrop-filter: blur(32px) saturate(180%)`) displaying real-time progress fills, satellite connectivity status, and system calibration steps.
+- **Silky Smooth Homepage Reveal**: The active weather canvas seamlessly unblurs and fades in under the glass loader when calibration completes.
+
+### 🗺️ Dynamic Radar & Weather Visuals
+- **Interactive RainViewer Radar**: Embedded Leaflet.js interactive precipitation radar with live tile caching and zoom controls.
+- **Canvas Weather Particles**: Real-time canvas particle overlay rendering rain, snow, night-time starfields, and storm lightning flashes (with toggle in Settings and reduced-motion respect).
+- **Time-of-Day Adaptive Themes**: Crossfading atmospheric canvas matching weather condition (clear, clouds, rain, snow, fog, thunderstorm) and local solar status (day, golden hour, night).
+
+---
+
+## 🚀 Key Features
+
+- 🌤️ **Real-time Weather & Forecasts**: Hourly timeline (+1h, +3h, +6h, +12h, Tomorrow) and 7-day extended forecasts powered by Open-Meteo APIs.
+- 🤖 **Gemini AI Weather Assistant**: Conversational AI recommendations for clothing, outdoor planning, cycling, running, and travel advice with voice input & text-to-speech support.
+- 💨 **Air Quality Index (AQI) & Environmental Metrics**: In-depth monitoring for PM2.5, PM10, UV Index, humidity, barometric pressure, dew point, and wind vectors.
+- 🏃 **Outdoor Activity Suitability**: Dynamic scoring for running, cycling, stargazing, photography, and drone flight based on wind, visibility, and precipitation.
+- ⚡ **Severe Weather Banners**: Instant warnings for thunderstorms, gale-force winds, intense UV radiation, heatwaves, and dense fog.
+- 📱 **Progressive Web App (PWA)**: Complete offline shell caching via `sw.js` and `manifest.json` for "Add to Home Screen" installation on iOS, Android, and Desktop.
+- ⌨️ **Keyboard Accessibility**: Full shortcut support (`/` to search, `U` to switch units, `M` for radar map, `A` for AI assistant, `S` for settings, `?` for shortcuts list).
+
+---
+
+## 🛠️ Tech Stack & Integrations
+
+| Layer | Technology / Source |
+| :--- | :--- |
+| **Frontend Framework** | Pure Modular ES6 JavaScript, HTML5, CSS3 Glassmorphism |
+| **Auth & Database** | Firebase Authentication & Cloud Firestore (`ai-studio-atmosweather`) |
+| **Serverless Email** | Vercel Node.js Function (`/api/send-welcome-email.js`) via Nodemailer |
+| **Weather & Geocoding** | [Open-Meteo API](https://open-meteo.com/) & BigDataCloud Reverse Geocoding |
+| **Radar & Maps** | [Leaflet.js](https://leafletjs.com/) + OpenStreetMap + [RainViewer Tile Cache](https://www.rainviewer.com/api.html) |
+| **AI Assistant** | Google Gemini API / Natural Rule Engine with Web Speech API |
+
+---
+
+## 🎹 Keyboard Shortcuts
+
+| Key | Action |
+| :---: | :--- |
+| `/` | Focus search bar to query a new city |
+| `U` | Toggle temperature units (°C / °F) |
+| `M` | Open live weather radar map modal |
+| `A` | Launch Gemini AI Weather Assistant |
+| `S` | Open Settings panel |
+| `?` | Open Keyboard Shortcuts guide |
+| `Esc` | Close any active modal or overlay |
+
+---
+
+## 📁 File Structure
+
+```
+/
+├── index.html                  # Core HTML structure & modal definitions
+├── style.css                   # Glassmorphism, landscape layouts & CSS variables
+├── script.js                   # Application state, weather fetchers, auth & session persistence
+├── sw.js                       # Service worker for PWA offline shell caching
+├── manifest.json               # Progressive Web App metadata
+├── vercel.json                 # Vercel serverless API routing config
+├── metadata.json               # Applet configuration & metadata
+├── firebase-applet-config.json # Provisioned Firebase credentials
+├── api/
+│   └── send-welcome-email.js   # Serverless email dispatch handler
+└── assets/
+    ├── atmos_logo.svg          # Official Atmos Weather vector logo
+    ├── background.jpg          # High-resolution hero wallpaper
+    ├── favicon.png             # Site favicon
+    ├── icon-192.png            # PWA launcher icon (192x192)
+    └── icon-512.png            # PWA launcher icon (512x512)
+```
+
+---
+
+## 💻 Local Development & Deployment
+
+### Run Locally
+You can serve the static directory with any web server:
+
 ```bash
+# Using Node.js npx serve
 npx serve .
-# or
-python3 -m http.server 8000
+
+# Or using Python 3
+python3 -m http.server 3000
 ```
 
-## Deploy — same as before
-Since you're uploading straight to GitHub: unzip this, make sure
-`index.html` sits at your repo's top level (not inside a subfolder),
-upload everything (including the `assets` folder and its `weather`
-subfolder), commit, and Vercel auto-redeploys from the existing
-import — no new project needed, no Root Directory change needed.
+Open `http://localhost:3000` in your web browser.
 
-## File structure
-```
-index.html
-style.css
-script.js
-manifest.json
-sw.js
-vercel.json
-assets/
-  background.jpg
-  logo.jpg
-  favicon.png
-  icon-192.png
-  icon-512.png
-  weather/
-    README.md   ← naming convention for your future weather photos
-```
+### Production Deployment
+Atmos v3 is configured for zero-config static hosting or Vercel deployment. When deploying to Vercel or Cloud Run, environment variables (e.g., `GMAIL_USER`, `GMAIL_PASS`) can be added for live email dispatching.
+
+---
+
+## 📜 License & Credits
+
+Developed by **Devron Group** • Built with Google AI Studio & Open Source APIs.

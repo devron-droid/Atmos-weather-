@@ -53,8 +53,122 @@ function getFirebaseAuth() {
 getFirebaseAuth();
 
 let bootFinished = false;
-
 let authUser = null;
+
+/* ============================================================
+   USER SESSION PERSISTENCE & PROFILE SYSTEM
+   ============================================================ */
+const LS_SESSION = "atmos_user_session";
+
+function saveUserSession(user) {
+  if (!user) return null;
+  const email = user.email || "";
+  const displayName = user.displayName || (email ? email.split("@")[0] : "Atmos User");
+  const photoURL = user.photoURL || "";
+  let provider = "Google Account";
+  if (user.providerData && user.providerData[0]) {
+    const pid = user.providerData[0].providerId;
+    if (pid.includes("google")) provider = "Google OAuth";
+    else if (pid.includes("password")) provider = "Email Authentication";
+  } else if (user.provider) {
+    provider = user.provider;
+  }
+
+  const session = {
+    email,
+    displayName,
+    photoURL,
+    provider,
+    loginTime: new Date().toISOString()
+  };
+  try {
+    localStorage.setItem(LS_SESSION, JSON.stringify(session));
+  } catch (e) {
+    console.warn("Could not save session to localStorage:", e);
+  }
+  return session;
+}
+
+function getUserSession() {
+  try {
+    const raw = localStorage.getItem(LS_SESSION);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function clearUserSession() {
+  try {
+    localStorage.removeItem(LS_SESSION);
+  } catch (e) {}
+  const auth = getFirebaseAuth();
+  if (auth && typeof firebase !== "undefined" && firebase.auth) {
+    auth.signOut().catch(() => {});
+  }
+}
+
+function updateUserProfileUI(session) {
+  if (!session) return;
+
+  const name = session.displayName || "User";
+  const email = session.email || "user@atmosweather.app";
+  const initial = name.charAt(0).toUpperCase() || "U";
+
+  // Topbar elements
+  const topbarName = document.getElementById("topbarUserName");
+  const topbarAvatar = document.getElementById("topbarUserAvatar");
+  if (topbarName) topbarName.textContent = name;
+  if (topbarAvatar) {
+    if (session.photoURL) {
+      topbarAvatar.innerHTML = `<img src="${session.photoURL}" alt="${name}" />`;
+    } else {
+      topbarAvatar.textContent = initial;
+    }
+  }
+
+  // Modal elements
+  const modalName = document.getElementById("profileModalName");
+  const modalEmail = document.getElementById("profileModalEmail");
+  const detailName = document.getElementById("profileDetailName");
+  const detailEmail = document.getElementById("profileDetailEmail");
+  const detailProvider = document.getElementById("profileDetailProvider");
+  const providerText = document.getElementById("profileModalProviderText");
+  const initialsEl = document.getElementById("profileModalAvatarInitials");
+  const imgEl = document.getElementById("profileModalAvatarImg");
+
+  if (modalName) modalName.textContent = name;
+  if (modalEmail) modalEmail.textContent = email;
+  if (detailName) detailName.textContent = name;
+  if (detailEmail) detailEmail.textContent = email;
+  if (detailProvider) detailProvider.textContent = session.provider || "Google OAuth";
+  if (providerText) providerText.textContent = session.provider || "Google Signed In";
+
+  if (session.photoURL && imgEl && initialsEl) {
+    imgEl.src = session.photoURL;
+    imgEl.style.display = "block";
+    initialsEl.style.display = "none";
+  } else if (initialsEl && imgEl) {
+    imgEl.style.display = "none";
+    initialsEl.textContent = initial;
+    initialsEl.style.display = "inline";
+  }
+}
+
+/* Sync Firebase Auth State Changes */
+try {
+  const firebaseAuthInstance = getFirebaseAuth();
+  if (firebaseAuthInstance && typeof firebase !== "undefined" && firebase.auth) {
+    firebaseAuthInstance.onAuthStateChanged((user) => {
+      if (user) {
+        const session = saveUserSession(user);
+        updateUserProfileUI(session);
+      }
+    });
+  }
+} catch(err) {
+  console.warn("Auth observer error:", err);
+}
 
 /* ---- INTRO LOADER & GET STARTED TRIGGER ---- */
 function startIntroProgress(){
@@ -142,7 +256,7 @@ document.addEventListener("click", (e) => {
   }
 });
 
-/* Helper to send welcome email from developer singhrudransh0000@gmail.com */
+/* Helper to send welcome email */
 async function sendWelcomeEmail(email, name) {
   try {
     const response = await fetch('/api/send-welcome-email', {
@@ -157,7 +271,7 @@ async function sendWelcomeEmail(email, name) {
   } catch (err) {
     // Fail silently & gracefully so user sign-in flow never errors
   }
-  return { success: true, simulated: true, sentFrom: 'singhrudransh0000@gmail.com' };
+  return { success: true, simulated: true, sentFrom: 'support@atmosweather.app' };
 }
 
 /* Atmospheric Calibration & Loading Overlay before revealing Home Dashboard */
@@ -173,10 +287,20 @@ async function startCalibrationLoadingAndRevealHome(userEmail, userName) {
   const statusText = document.getElementById("loadingStatusText");
   const progressFill = document.getElementById("loadingProgressFill");
   const emailBadge = document.getElementById("welcomeEmailBadge");
+  const app = document.getElementById("app");
+  const overlay = document.getElementById("authOverlay");
 
   if (loginCard) { loginCard.hidden = true; loginCard.style.display = "none"; }
   if (getStartedCard) { getStartedCard.hidden = true; getStartedCard.style.display = "none"; }
   if (authWord) { authWord.hidden = true; authWord.style.display = "none"; }
+
+  // Unhide home app in background so the user sees the real dynamic weather canvas behind the glass loader
+  if (app) {
+    app.hidden = false;
+    app.style.opacity = "0.7";
+    app.style.filter = "blur(6px)";
+    app.style.transition = "opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), filter 0.8s ease";
+  }
 
   if (homeLoading) {
     homeLoading.hidden = false;
@@ -190,9 +314,9 @@ async function startCalibrationLoadingAndRevealHome(userEmail, userName) {
   // Calibration stages
   const stages = [
     { fill: 20, text: "Authenticating atmospheric profile..." },
-    { fill: 50, text: "Dispatching welcome email from singhrudransh0000@gmail.com..." },
-    { fill: 80, text: "Connecting to Open-Meteo satellite feeds..." },
-    { fill: 100, text: "Dashboard ready! Welcome to Atmos." }
+    { fill: 55, text: "Dispatching welcome confirmation email..." },
+    { fill: 85, text: "Connecting to Open-Meteo satellite feeds..." },
+    { fill: 100, text: "Dashboard ready! Welcome to Atmos Weather." }
   ];
 
   for (let i = 0; i < stages.length; i++) {
@@ -200,45 +324,58 @@ async function startCalibrationLoadingAndRevealHome(userEmail, userName) {
     if (progressFill) progressFill.style.width = `${stage.fill}%`;
     if (statusText) statusText.textContent = stage.text;
 
-    if (stage.fill >= 50 && emailBadge && userEmail) {
+    if (stage.fill >= 55 && emailBadge && userEmail) {
       emailBadge.hidden = false;
       const span = emailBadge.querySelector("span");
-      if (span) span.textContent = `Welcome email dispatched to ${userEmail} (from singhrudransh0000@gmail.com)`;
+      if (span) span.textContent = `Welcome confirmation email dispatched to ${userEmail}`;
     }
 
-    await new Promise(r => setTimeout(r, 650));
+    await new Promise(r => setTimeout(r, 600));
   }
 
   await emailPromise;
 
-  // Reveal home dashboard smoothly
-  const overlay = document.getElementById("authOverlay");
-  const app = document.getElementById("app");
+  // Reveal home dashboard smoothly with a silky fade transition
+  if (app) {
+    app.style.opacity = "1";
+    app.style.filter = "blur(0px)";
+  }
 
-  if (app) app.hidden = false;
+  if (homeLoading) {
+    homeLoading.style.transition = "opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s ease";
+    homeLoading.style.opacity = "0";
+    homeLoading.style.transform = "scale(1.04)";
+  }
+
   if (overlay) {
-    overlay.style.transition = "opacity 0.6s ease";
+    overlay.style.transition = "opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1)";
     overlay.style.opacity = "0";
     overlay.style.pointerEvents = "none";
   }
 
   setTimeout(() => {
+    if (homeLoading) {
+      homeLoading.hidden = true;
+      homeLoading.style.display = "none";
+    }
     if (overlay) {
       overlay.hidden = true;
       overlay.style.display = "none";
     }
     isTransitioningHome = false;
     if (userEmail) {
-      toast(`✨ Welcome ${userName || userEmail}! Check your inbox for a message from Rudransh Singh.`);
+      toast(`✨ Welcome ${userName || userEmail}! Check your inbox for your welcome message.`);
     } else {
       toast(`✨ Welcome to Atmos Weather Dashboard!`);
     }
-  }, 600);
+  }, 650);
 }
 
 /* Handle Authentication Success */
 async function handleAuthSuccess(user) {
   authUser = user;
+  const session = saveUserSession(user);
+  updateUserProfileUI(session || user);
   const email = user?.email || "";
   const name = user?.displayName || (email ? email.split("@")[0] : "Explorer");
   await startCalibrationLoadingAndRevealHome(email, name);
@@ -376,15 +513,23 @@ function friendlyAuthError(e) {
   return map[e.code] || e.message || "Something went wrong — please try again.";
 }
 
-document.getElementById("logoutBtn")?.addEventListener("click", () => {
-  const auth = getFirebaseAuth();
-  if (auth) {
-    auth.signOut().then(() => {
-      location.reload();
-    });
-  } else {
+function performSignOut() {
+  clearUserSession();
+  toast("Signed out successfully.");
+  setTimeout(() => {
     location.reload();
+  }, 400);
+}
+
+document.getElementById("logoutBtn")?.addEventListener("click", performSignOut);
+document.getElementById("profileSignOutBtn")?.addEventListener("click", performSignOut);
+
+document.getElementById("userProfileBtn")?.addEventListener("click", () => {
+  const session = getUserSession() || authUser;
+  if (session) {
+    updateUserProfileUI(session);
   }
+  openModal("userProfileModal");
 });
 
 /* ---------------- light / dark theme ---------------- */
@@ -2454,7 +2599,26 @@ function setupSwipeSupport() {
   applySettingsToCss(); syncSettingsUI(); updateTheme();
   
   setupSwipeSupport();
-  startIntroProgress();
+
+  // Check for existing saved session
+  const savedSession = getUserSession();
+  if (savedSession) {
+    authUser = savedSession;
+    updateUserProfileUI(savedSession);
+    const overlay = document.getElementById("authOverlay");
+    const app = document.getElementById("app");
+    if (overlay) {
+      overlay.hidden = true;
+      overlay.style.display = "none";
+    }
+    if (app) {
+      app.hidden = false;
+      app.style.opacity = "1";
+      app.style.filter = "blur(0px)";
+    }
+  } else {
+    startIntroProgress();
+  }
   
   const minLoad = new Promise(r => setTimeout(r, 600));
   const dataLoad = loadCity(state.city, { persist:false, addRecent:false }).catch(() => {});
